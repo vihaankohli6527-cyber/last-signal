@@ -29,7 +29,7 @@ export const CONFIG = {
     sprintSpeed: 9.5,
     jumpSpeed: 7.0,
     gravity: 20,
-    maxHp: 100,
+    maxHp: 150,
     maxArmour: 100,
     armourAbsorb: 0.66,     // armour soaks up 66% of incoming damage while it lasts
     healBetweenWaves: 0.4,  // fraction of max HP restored after each wave
@@ -59,8 +59,13 @@ export const CONFIG = {
   WEAPONS: {
     knife: {
       name: 'Tactical Knife', short: 'KNIFE', slot: 1, price: 0, type: 'melee', auto: true,
-      damage: 55, rate: 0.45, range: 2.8, arc: 0.7, headMult: 1,
-      desc: 'Silent, free, never runs dry.',
+      damage: 9999, rate: 0.42, range: 2.8, arc: 0.7, headMult: 1,
+      // One slash kills any normal enemy. The boss is too big for that: it
+      // loses this fraction of its max health per slash instead.
+      bossFrac: 0.04,
+      // Right click = heavy stab: slower, shorter, but hurts the boss more.
+      heavyRate: 0.95, heavyRange: 2.4, heavyBossFrac: 0.10,
+      desc: 'One-hit kill on normal enemies. Right click: heavy stab.',
       stats: { damage: 5, rate: 5, range: 1, mobility: 10 },
     },
     pistol: {
@@ -113,7 +118,7 @@ export const CONFIG = {
     ammo:    { name: 'Ammo Refill',    price: 300,  desc: 'Fill every owned weapon to max ammo.' },
     light:   { name: 'Light Shields',  price: 400,  desc: '+50 armour (max 100).', armour: 50 },
     heavy:   { name: 'Heavy Shields',  price: 900,  desc: 'Armour to 100.', armour: 100 },
-    medkit:  { name: 'Med Kit',        price: 300,  desc: 'Restore 60 HP.', heal: 60 },
+    medkit:  { name: 'Med Kit',        price: 300,  desc: 'Restore 75 HP.', heal: 75 },
     repair:  { name: 'Tower Repair',   price: 500,  desc: 'Restore 300 tower HP.', amount: 300 },
     turret:  { name: 'Auto-Turret',    price: 1500, desc: 'Guards the tower. Max 4.', max: 4 },
   },

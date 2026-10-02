@@ -35,6 +35,12 @@ export const Sound = {
     return this.muted;
   },
 
+  /** Overall output level = master volume x SFX volume. */
+  setVolume(master, sfx) {
+    this.volume = 0.6 * master * sfx;
+    if (this.master) this.master.gain.value = this.muted ? 0 : this.volume;
+  },
+
   ok() { return this.ctx && !this.muted; },
 
   /* A tone that slides from freq to endFreq over dur seconds. */

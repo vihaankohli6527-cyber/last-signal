@@ -30,7 +30,17 @@ import { HUD } from './hud.js';
 import { Market } from './market.js';
 
 const $ = (id) => document.getElementById(id);
-const BASE_FOV = 75;
+const DEFAULT_SETTINGS = {
+  sens: 1, adsMult: 1, invertY: false, fov: 75,
+  master: 0.8, sfx: 1,
+  quality: 'high', res: 1, shadows: true, bloom: true, fps: false,
+  chColor: '#5cfff0', chSize: 7,
+};
+const QUALITY = {
+  low: { res: 0.6, shadows: false, bloom: false },
+  medium: { res: 0.85, shadows: true, bloom: false },
+  high: { res: 1, shadows: true, bloom: true },
+};
 const SETTINGS_KEY = 'lastSignal3d.settings';
 const BEST_KEY = 'lastSignal3d.best';
 
@@ -41,8 +51,9 @@ class Game {
   constructor() {
     this.testMode = new URLSearchParams(location.search).has('test');
     this.sound = Sound;
-    this.settings = Object.assign({ bloom: true, shadows: true, res: 1, sens: 1, fps: false },
-      JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}'));
+    let saved = {};
+    try { saved = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}') || {}; } catch (e) { saved = {}; }
+    this.settings = Object.assign({}, DEFAULT_SETTINGS, saved);
 
     // ---------- renderer & cameras ----------
     this.canvas = $('game');
@@ -51,7 +62,7 @@ class Game {
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.shadowMap.enabled = this.settings.shadows;
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
-    this.camera = new THREE.PerspectiveCamera(BASE_FOV, innerWidth / innerHeight, 0.05, 900);
+    this.camera = new THREE.PerspectiveCamera(this.settings.fov, innerWidth / innerHeight, 0.05, 900);
     this.camera.rotation.order = 'YXZ';
 
     // The gun is drawn in its own little scene on top of the world, so it
@@ -84,6 +95,7 @@ class Game {
     this.controls.disconnect();               // replace the noisy error handler with a friendly hint
     this.controls._onPointerlockError = () => { this.hud && this.hud.hint('Click to capture the mouse'); };
     this.controls.connect(this.canvas);
+    this.controls.enabled = false;            // we do mouse-look ourselves (invert Y, ADS sensitivity...)
     this.controls.addEventListener('unlock', () => this.onUnlock());
     this.controls.addEventListener('lock', () => { this.hud.hint(''); });
 
@@ -161,13 +173,7 @@ class Game {
     $('btn-go-maps').onclick = () => this.openMapSelect();
     $('btn-mk-close').onclick = () => this.closeMarket();
     $('btn-mk-ready').onclick = () => this.startWave();
-    const s = this.settings;
-    $('opt-bloom').onchange = (e) => { s.bloom = e.target.checked; this.applySettings(); };
-    $('opt-shadows').onchange = (e) => { s.shadows = e.target.checked; this.applySettings(); };
-    $('opt-res').onchange = (e) => { s.res = parseFloat(e.target.value); this.applySettings(); };
-    $('opt-sens').oninput = (e) => { s.sens = parseFloat(e.target.value); this.applySettings(); };
-    $('opt-mute').onchange = () => { Sound.toggleMute(); };
-    $('opt-fps').onchange = (e) => { s.fps = e.target.checked; this.applySettings(); };
+    this.setupSettingsUI();
 
     // Map cards
     const wrap = $('map-cards');
@@ -183,16 +189,64 @@ class Game {
     this.showBest();
   }
 
+  // ---------------------------------------------------------------- settings screen
+  setupSettingsUI() {
+    const s = this.settings;
+    $('btn-title-settings').onclick = () => { Sound.init(); Sound.ui(); this.openSettings(); };
+    $('btn-pause-settings').onclick = () => { Sound.ui(); this.openSettings(); };
+    $('btn-settings-back').onclick = () => { Sound.ui(); this.closeSettings(); };
+    $('btn-settings-reset').onclick = () => { Object.assign(s, DEFAULT_SETTINGS); this.applySettings(); Sound.ui(); };
+    const range = (id, key, custom) => { $(id).oninput = (e) => { s[key] = parseFloat(e.target.value); if (custom) s.quality = 'custom'; this.applySettings(); }; };
+    const check = (id, key, custom) => { $(id).onchange = (e) => { s[key] = e.target.checked; if (custom) s.quality = 'custom'; this.applySettings(); }; };
+    range('opt-sens', 'sens'); range('opt-ads', 'adsMult'); range('opt-fov', 'fov');
+    range('opt-master', 'master'); range('opt-sfx', 'sfx');
+    range('opt-res', 'res', true); range('opt-chsize', 'chSize');
+    check('opt-invert', 'invertY'); check('opt-shadows', 'shadows', true); check('opt-bloom', 'bloom', true); check('opt-fps', 'fps');
+    $('opt-mute').onchange = () => { Sound.toggleMute(); };
+    $('opt-quality').onchange = (e) => {
+      s.quality = e.target.value;
+      if (QUALITY[s.quality]) Object.assign(s, QUALITY[s.quality]);
+      this.applySettings();
+    };
+    $('opt-chcolor').onchange = (e) => { s.chColor = e.target.value; this.applySettings(); };
+    $('opt-chcustom').oninput = (e) => { s.chColor = e.target.value; this.applySettings(); };
+  }
+
+  openSettings() {
+    this.settingsOpen = true;
+    $('settings').classList.remove('hidden');
+    this.applySettings();
+  }
+
+  closeSettings() {
+    this.settingsOpen = false;
+    $('settings').classList.add('hidden');
+  }
+
   applySettings() {
     const s = this.settings;
-    localStorage.setItem(SETTINGS_KEY, JSON.stringify(s));
-    $('opt-bloom').checked = s.bloom; $('opt-shadows').checked = s.shadows;
-    $('opt-res').value = String(s.res); $('opt-sens').value = s.sens; $('opt-fps').checked = s.fps;
+    try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(s)); } catch (e) { /* private mode */ }
+    // reflect values in the controls
+    const val = (id, v, txt) => { $('opt-' + id).value = v; if ($('val-' + id)) $('val-' + id).textContent = txt; };
+    val('sens', s.sens, s.sens.toFixed(2)); val('ads', s.adsMult, s.adsMult.toFixed(2) + '×');
+    val('fov', s.fov, s.fov + '°');
+    val('master', s.master, Math.round(s.master * 100) + '%'); val('sfx', s.sfx, Math.round(s.sfx * 100) + '%');
+    val('res', s.res, Math.round(s.res * 100) + '%'); val('chsize', s.chSize, s.chSize + 'px');
+    $('opt-invert').checked = s.invertY; $('opt-shadows').checked = s.shadows; $('opt-bloom').checked = s.bloom;
+    $('opt-fps').checked = s.fps; $('opt-mute').checked = Sound.muted; $('opt-quality').value = s.quality;
+    const preset = [...$('opt-chcolor').options].some((o) => o.value === s.chColor);
+    $('opt-chcolor').value = preset ? s.chColor : '#5cfff0';
+    $('opt-chcustom').value = s.chColor;
+    // apply live
+    document.documentElement.style.setProperty('--ch-color', s.chColor);
+    document.documentElement.style.setProperty('--ch-size', s.chSize + 'px');
+    Sound.setVolume(s.master, s.sfx);
     if (this.renderer.shadowMap.enabled !== s.shadows) {
       this.renderer.shadowMap.enabled = s.shadows;
       // materials must be recompiled when shadows are switched
       if (this.scene) this.scene.traverse((o) => { if (o.material) o.material.needsUpdate = true; });
     }
+    if (this.state !== 'playing' && this.state !== 'cutscene') { this.camera.fov = s.fov; this.camera.updateProjectionMatrix(); }
     $('fps').classList.toggle('hidden', !s.fps);
     this.resize();
   }
@@ -234,7 +288,7 @@ class Game {
     const r = Math.min(this.world.halfX, this.world.halfZ) * 0.85 + 6;
     const a = t * 0.1 + 0.8;
     this.camera.position.set(Math.cos(a) * r, 9, Math.sin(a) * r);
-    this.camera.fov = BASE_FOV; this.camera.updateProjectionMatrix();
+    this.camera.fov = this.settings.fov; this.camera.updateProjectionMatrix();
     this.camera.lookAt(0, 5, 0);
   }
 
@@ -577,11 +631,25 @@ class Game {
       if (this.state === 'playing' && !this.market.open) this.weapons.cycle(e.deltaY > 0 ? 1 : -1);
     }, { passive: true });
     document.addEventListener('mousemove', (e) => {
-      if (document.pointerLockElement) { this.input.lookDX += e.movementX; this.input.lookDY += e.movementY; }
+      if (!document.pointerLockElement) return;
+      this.input.lookDX += e.movementX; this.input.lookDY += e.movementY;
+      if (this.state === 'playing' && !this.market.open) this.look(e.movementX, e.movementY);
     });
   }
 
+  /** Mouse-look: yaw/pitch the camera using the sensitivity settings. */
+  look(dx, dy) {
+    const s = this.settings, cam = this.camera;
+    let k = 0.002 * s.sens * CONFIG.PLAYER.mouseSensitivity;
+    if (this.weapons.isAiming) k *= s.adsMult;
+    k *= this.camera.fov / s.fov;            // slower when zoomed in, so aim feels consistent
+    cam.rotation.y -= dx * k;
+    cam.rotation.x -= dy * k * (s.invertY ? -1 : 1);
+    cam.rotation.x = Math.max(-Math.PI / 2 + 0.01, Math.min(Math.PI / 2 - 0.01, cam.rotation.x));
+  }
+
   onKey(code) {
+    if (this.settingsOpen) { if (code === 'Escape') this.closeSettings(); return; }
     if (code === 'KeyM') { Sound.toggleMute(); $('opt-mute').checked = Sound.muted; }
     switch (this.state) {
       case 'title': if (code === 'Enter') this.openMapSelect(); break;
@@ -601,10 +669,11 @@ class Game {
         }
         if (code.startsWith('Digit')) this.weapons.selectSlot(+code.slice(5));
         else if (code === 'KeyR') this.weapons.reload();
+        else if (code === 'KeyY') this.weapons.inspect();
         else if (code === 'KeyQ') this.weapons.cycle(-1);
         else if (code === 'KeyB') this.tryOpenMarket();
         else if ((code === 'Enter' || code === 'KeyN') && this.phase === 'intermission') this.startWave();
-        else if (code === 'KeyG') { this.settings.bloom = !this.settings.bloom; this.applySettings(); }
+        else if (code === 'KeyG') { this.settings.bloom = !this.settings.bloom; this.settings.quality = 'custom'; this.applySettings(); }
         else if (code === 'Escape' || code === 'KeyP') this.pause();
         break;
     }
@@ -651,13 +720,13 @@ class Game {
 
     // Field of view: zoom when aiming, widen slightly when sprinting.
     const d = this.weapons.def;
-    const zoomFov = d.zoom || BASE_FOV;
-    const targetFov = BASE_FOV + (zoomFov - BASE_FOV) * this.weapons.aimT + (p.sprinting ? 5 : 0);
+    const baseFov = this.settings.fov;
+    const zoomFov = d.zoom ? Math.min(d.zoom, baseFov) : baseFov - 8;   // ADS zooms a little even without a scope
+    const targetFov = baseFov + (zoomFov - baseFov) * this.weapons.aimT + (p.sprinting ? 5 : 0);
     if (Math.abs(this.camera.fov - targetFov) > 0.01) {
       this.camera.fov += (targetFov - this.camera.fov) * Math.min(1, dt * 15);
       this.camera.updateProjectionMatrix();
     }
-    this.controls.pointerSpeed = this.settings.sens * CONFIG.PLAYER.mouseSensitivity * (this.camera.fov / BASE_FOV);
 
     // Spawning
     if (this.phase === 'wave') {

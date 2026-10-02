@@ -32,6 +32,8 @@ export class Player {
     this.sprinting = false;
     this.recoil = 0;      // extra pitch from recoil that slowly recovers
     this.shake = 0;
+    this.landImpact = 0;
+    this.punchP = { x: 0, v: 0 }; this.punchR = { x: 0, v: 0 }; this.punchApplied = 0;
     this.syncCamera();
     // Face the tower: yaw angle from our position toward (0,0).
     this.camera.rotation.set(0, Math.atan2(this.pos.x, this.pos.z), 0);
@@ -43,6 +45,23 @@ export class Player {
   addRecoil(amount) {
     this.camera.rotation.x = Math.min(Math.PI / 2 - 0.01, this.camera.rotation.x + amount);
     this.recoil += amount;
+  }
+
+  /** Camera punch (recoil / melee feel): an impulse into springs that settle back. */
+  punch(pitch, roll) {
+    this.punchP.v += pitch * 30;
+    this.punchR.v += roll * 30;
+  }
+
+  updatePunch(dt) {
+    for (const s of [this.punchP, this.punchR]) {
+      s.v += (-s.x * 220 - s.v * 20) * dt;
+      s.x += s.v * dt;
+    }
+    const cam = this.camera;
+    cam.rotation.x += this.punchP.x - this.punchApplied;   // apply only the change
+    this.punchApplied = this.punchP.x;
+    cam.rotation.z = this.punchR.x;
   }
 
   /** Apply damage. Armour soaks part of it. Returns damage actually taken by HP. */
@@ -95,6 +114,7 @@ export class Player {
     this.pos.y += this.vel.y * dt;
     const ground = world.groundHeight(this.pos.x, this.pos.z, P.radius, this.pos.y + Math.max(0, -this.vel.y * dt) );
     if (this.pos.y <= ground) {
+      if (!this.onGround && this.vel.y < -2) this.landImpact = -this.vel.y;
       this.pos.y = ground; this.vel.y = 0; this.onGround = true;
     } else if (this.pos.y > ground + 0.05) {
       this.onGround = false;
@@ -106,6 +126,7 @@ export class Player {
       cam.rotation.x -= back; this.recoil -= back;
     }
     this.shake = Math.max(0, this.shake - dt * 1.5);
+    this.updatePunch(dt);
     this.syncCamera();
   }
 

@@ -54,6 +54,7 @@ export function buildViewmodel(id) {
       box(g, 0.05, 0.06, 0.24, MAT.dark, 0, 0.03, -0.06);           // slide
       box(g, 0.052, 0.012, 0.2, MAT.red, 0, 0.066, -0.06);           // accent stripe
       box(g, 0.045, 0.12, 0.06, MAT.mid, 0, -0.05, 0.03, 0.25);       // grip
+      g.userData.mag = box(g, 0.036, 0.05, 0.045, MAT.dark, 0, -0.105, 0.045, 0.25); // magazine base
       box(g, 0.01, 0.015, 0.01, MAT.glowGreen, 0, 0.08, -0.16);       // sight dot
       cyl(g, 0.012, 0.012, 0.04, MAT.dark, 0, 0.03, -0.19, 8);
       hand(g, 0, -0.07, 0.04);
@@ -67,7 +68,7 @@ export function buildViewmodel(id) {
       box(g, 0.062, 0.03, 0.3, MAT.red, 0, 0.05, -0.08);              // top rail accent
       cyl(g, 0.016, 0.016, 0.3, MAT.dark, 0, 0.01, -0.4);             // barrel
       box(g, 0.05, 0.06, 0.1, MAT.dark, 0, 0.0, -0.32);               // handguard
-      box(g, 0.04, 0.14, 0.06, MAT.dark, 0, -0.1, -0.12, -0.2);       // magazine
+      g.userData.mag = box(g, 0.04, 0.14, 0.06, MAT.dark, 0, -0.1, -0.12, -0.2); // magazine
       box(g, 0.04, 0.1, 0.05, MAT.mid, 0, -0.08, 0.06, 0.3);          // grip
       box(g, 0.05, 0.08, 0.16, MAT.light, 0, -0.01, 0.22);            // stock
       box(g, 0.03, 0.04, 0.06, MAT.dark, 0, 0.08, -0.02);             // sight
@@ -89,6 +90,7 @@ export function buildViewmodel(id) {
       cyl(g, 0.042, 0.035, 0.05, MAT.dark, 0, 0.1, -0.19, 14);
       const lens = cyl(g, 0.036, 0.036, 0.005, MAT.lens, 0, 0.1, -0.215, 14);
       box(g, 0.04, 0.12, 0.05, MAT.mid, 0, -0.08, 0.08, 0.3);
+      g.userData.mag = box(g, 0.04, 0.07, 0.07, MAT.mid, 0, -0.07, -0.06);  // magazine
       box(g, 0.05, 0.09, 0.2, MAT.teal, 0, -0.02, 0.28);
       hand(g, 0, -0.1, 0.09);
       muzzle(g, 0, 0.01, -0.84);
@@ -115,8 +117,10 @@ export function buildViewmodel(id) {
       break;
     }
     case 'grenade': {
-      cyl(g, 0.11, 0.11, 0.16, MAT.mid, 0, -0.02, -0.05, 6);          // revolver drum
-      cyl(g, 0.112, 0.112, 0.02, MAT.glowGreen, 0, -0.02, -0.05, 6);
+      const drum = new THREE.Group(); drum.position.set(0, -0.02, -0.05); g.add(drum);
+      cyl(drum, 0.11, 0.11, 0.16, MAT.mid, 0, 0, 0, 6);               // revolver drum (spins on reload)
+      cyl(drum, 0.112, 0.112, 0.02, MAT.glowGreen, 0, 0, 0, 6);
+      g.userData.drum = drum;
       cyl(g, 0.05, 0.05, 0.36, MAT.dark, 0, 0.03, -0.3, 12);          // fat barrel
       box(g, 0.05, 0.05, 0.3, MAT.teal, 0, 0.09, -0.15);
       box(g, 0.04, 0.12, 0.05, MAT.dark, 0, -0.12, 0.06, 0.3);
@@ -158,6 +162,7 @@ export function buildViewmodel(id) {
       break;
     }
   }
+  if (g.userData.mag) g.userData.magBase = g.userData.mag.position.clone();
   g.scale.setScalar(0.75); // overall size of the guns on screen
   g.traverse((o) => { if (o.isMesh) { o.castShadow = false; o.frustumCulled = false; } });
   return g;

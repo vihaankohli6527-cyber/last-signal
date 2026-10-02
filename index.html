@@ -57,6 +57,7 @@
       <div class="logo"><span class="l1">LAST</span><span class="l2">SIGNAL</span><span class="l3">3D</span></div>
       <p class="tagline">Defend the radio tower. Survive the swarm. Keep the signal alive.</p>
       <button id="btn-play" class="btn primary">PLAY</button>
+      <button id="btn-title-settings" class="btn">SETTINGS</button>
       <div id="best-score" class="best"></div>
       <div class="controls-grid">
         <div><b>WASD</b> move</div><div><b>SHIFT</b> sprint</div><div><b>SPACE</b> jump</div>
@@ -104,17 +105,40 @@
   <!-- ================= Pause ================= -->
   <div id="pause" class="screen hidden">
     <h2 class="screen-title">PAUSED</h2>
-    <div class="settings">
-      <label><input type="checkbox" id="opt-bloom" checked /> Bloom (glow effect)</label>
-      <label><input type="checkbox" id="opt-shadows" checked /> Shadows</label>
-      <label>Resolution <select id="opt-res"><option value="0.6">Low</option><option value="0.85">Medium</option><option value="1" selected>High</option></select></label>
-      <label>Mouse sensitivity <input type="range" id="opt-sens" min="0.2" max="3" step="0.1" value="1" /></label>
-      <label><input type="checkbox" id="opt-mute" /> Mute sound (M)</label>
-      <label><input type="checkbox" id="opt-fps" /> Show FPS</label>
-    </div>
     <div class="row">
       <button id="btn-resume" class="btn primary">RESUME</button>
+      <button id="btn-pause-settings" class="btn">SETTINGS</button>
       <button id="btn-quit" class="btn">QUIT TO TITLE</button>
+    </div>
+  </div>
+
+  <!-- ================= Settings ================= -->
+  <div id="settings" class="screen hidden">
+    <h2 class="screen-title">SETTINGS</h2>
+    <div class="settings settings-grid">
+      <div class="sec">CONTROLS</div>
+      <label>Mouse sensitivity <span class="ctl"><input type="range" id="opt-sens" min="0.1" max="4" step="0.05" /><output id="val-sens"></output></span></label>
+      <label>Scoped / ADS multiplier <span class="ctl"><input type="range" id="opt-ads" min="0.2" max="2" step="0.05" /><output id="val-ads"></output></span></label>
+      <label>Invert Y <input type="checkbox" id="opt-invert" /></label>
+      <label>Field of view <span class="ctl"><input type="range" id="opt-fov" min="60" max="110" step="1" /><output id="val-fov"></output></span></label>
+      <div class="sec">AUDIO</div>
+      <label>Master volume <span class="ctl"><input type="range" id="opt-master" min="0" max="1" step="0.01" /><output id="val-master"></output></span></label>
+      <label>SFX volume <span class="ctl"><input type="range" id="opt-sfx" min="0" max="1" step="0.01" /><output id="val-sfx"></output></span></label>
+      <label>Mute (M) <input type="checkbox" id="opt-mute" /></label>
+      <div class="sec">GRAPHICS</div>
+      <label>Quality preset <select id="opt-quality"><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option><option value="custom">Custom</option></select></label>
+      <label>Resolution scale <span class="ctl"><input type="range" id="opt-res" min="0.4" max="1" step="0.05" /><output id="val-res"></output></span></label>
+      <label>Shadows <input type="checkbox" id="opt-shadows" /></label>
+      <label>Bloom (glow) <input type="checkbox" id="opt-bloom" /></label>
+      <label>Show FPS <input type="checkbox" id="opt-fps" /></label>
+      <div class="sec">CROSSHAIR</div>
+      <label>Colour <span class="ctl"><select id="opt-chcolor"><option value="#5cfff0">Cyan</option><option value="#ffffff">White</option><option value="#39ff5a">Green</option><option value="#ffe83d">Yellow</option><option value="#ff4655">Red</option><option value="#ff4dff">Magenta</option></select><input type="color" id="opt-chcustom" /></span></label>
+      <label>Size <span class="ctl"><input type="range" id="opt-chsize" min="3" max="16" step="1" /><output id="val-chsize"></output></span></label>
+      <div class="ch-preview"><div id="ch-preview"><i class="ch t"></i><i class="ch b"></i><i class="ch l"></i><i class="ch r"></i><i class="dot"></i></div></div>
+    </div>
+    <div class="row">
+      <button id="btn-settings-reset" class="btn">RESET DEFAULTS</button>
+      <button id="btn-settings-back" class="btn primary">BACK</button>
     </div>
   </div>
 

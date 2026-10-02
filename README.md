@@ -11,13 +11,20 @@ python3 -m http.server 8000     # in this folder
 ```
 (Opening the file directly with `file://` won't work, because browsers block ES modules there. Serve it over HTTP.)
 
+## Settings
+
+Title screen or pause menu → **SETTINGS**: mouse sensitivity, scoped/ADS multiplier, invert Y, field of view, master/SFX volume, quality preset (low/medium/high), resolution scale, shadows, bloom, FPS counter, crosshair colour and size. Saved in localStorage and applied immediately.
+
+Knife: one hit kills any normal enemy. Against the Hive Colossus boss a slash takes 4% of its max HP and a heavy stab takes 10%. Player max health is 150.
+
 ## Controls
 | Key | Action |
 |---|---|
 | Mouse | look (click the game to capture the mouse) |
 | WASD / arrows | move · **Shift** sprint · **Space** jump |
 | Left click | fire (bow: hold to draw, release to shoot) |
-| Right click | aim / zoom (sniper scope, bow draw) |
+| Right click | aim / zoom (sniper scope, bow draw); with the knife: heavy stab |
+| Y | inspect weapon |
 | R | reload |
 | 1–7 / mouse wheel / Q | switch owned weapons (1 knife, 2 pistol, 3 rifle, 4 sniper, 5 RPG, 6 grenade launcher, 7 bow) |
 | B | market (between waves, or during a wave when standing at the terminal near the tower) |

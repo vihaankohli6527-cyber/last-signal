@@ -116,7 +116,7 @@ export class HUD {
     this.set('hp-fill', 'width', (p.hp / p.maxHp * 100).toFixed(1) + '%');
     this.set('armour-text', 'text', Math.ceil(p.armour));
     this.set('armour-fill', 'width', (p.armour / CONFIG.PLAYER.maxArmour * 100).toFixed(1) + '%');
-    $('hp-text').parentElement.classList.toggle('low', p.hp < 30);
+    $('hp-text').parentElement.classList.toggle('low', p.hp < p.maxHp * 0.25);
     // Low health = red edges
     const vig = Math.max(0, 1 - p.hp / 45);
     $('vignette').style.boxShadow = `inset 0 0 ${120 + vig * 120}px rgba(255,0,30,${(vig * 0.7 + g.hurtFlash * 0.6).toFixed(2)})`;
@@ -153,8 +153,9 @@ export class HUD {
     const spread = 4 + ws.currentSpread() * 400;
     const ch = $('crosshair');
     ch.style.display = ws.scoped ? 'none' : 'block';
-    ch.children[0].style.top = (-spread - 7) + 'px'; ch.children[1].style.top = spread + 'px';
-    ch.children[2].style.left = (-spread - 7) + 'px'; ch.children[3].style.left = spread + 'px';
+    const len = (this.game.settings && this.game.settings.chSize) || 7;
+    ch.children[0].style.top = (-spread - len) + 'px'; ch.children[1].style.top = spread + 'px';
+    ch.children[2].style.left = (-spread - len) + 'px'; ch.children[3].style.left = spread + 'px';
     $('scope').classList.toggle('hidden', !ws.scoped);
     // Bow charge bar
     const showCharge = ws.current === 'bow' && ws.charge > 0;

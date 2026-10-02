@@ -9,6 +9,8 @@ import { CONFIG } from './config.js';
 import { buildViewmodel, setBowDraw } from './viewmodels.js';
 
 const W = CONFIG.WEAPONS;
+const SWAP_TIME = 0.45;   // seconds to pull out a weapon
+const INSPECT_TIME = 2.6; // seconds for the Y inspect animation
 export const WEAPON_ORDER = Object.keys(W).sort((a, b) => W[a].slot - W[b].slot);
 
 const _dir = new THREE.Vector3(), _right = new THREE.Vector3(), _up = new THREE.Vector3();
@@ -96,7 +98,8 @@ export class WeaponSystem {
     m.visible = true;
     if (m.userData.muzzle) m.userData.muzzle.add(this.flashMesh);
     this.reloadT = 0; this.charge = 0;
-    this.swapT = instant ? 0 : 0.35;
+    this.swapT = instant ? 0 : SWAP_TIME;
+    this.inspectT = 0;
     this.cooldown = Math.max(this.cooldown, instant ? 0 : 0.3);
     if (!instant) this.game.sound.swap();
     this.game.hud.weaponChanged();
@@ -115,11 +118,15 @@ export class WeaponSystem {
     if (id && this.owned[id]) this.select(id);
   }
 
+  /** Y key: show off the weapon. */
+  inspect() { if (this.reloadT <= 0 && this.swapT <= 0 && this.charge === 0) this.inspectT = INSPECT_TIME; }
+
   reload() {
     const d = this.def, a = this.ammo[this.current];
     if (!d.mag || d.reload <= 0 || this.reloadT > 0 || a.mag >= d.mag || a.reserve <= 0) return;
     this.reloadT = d.reload;
     this.charge = 0;
+    this.inspectT = 0;
     this.game.sound.reload();
   }
 
@@ -149,15 +156,23 @@ export class WeaponSystem {
     if (this.reloadT > 0) { this.reloadT -= dt; if (this.reloadT <= 0) this.finishReload(); }
 
     // Aiming (right mouse). The bow uses right-click to draw instead.
-    const wantAim = input.mouseR && this.current !== 'knife' && this.reloadT <= 0 && this.swapT <= 0;
-    this.aimT += ((wantAim ? 1 : 0) - this.aimT) * Math.min(1, dt * (this.current === 'sniper' ? 10 : 14));
+    const wantAim = input.mouseR && this.current !== 'knife' && this.reloadT <= 0 && this.swapT <= 0 && this.inspectT <= 0;
+    // aimRaw moves linearly; aimT is the eased (smoothstep) value used everywhere.
+    const aimSpeed = this.current === 'sniper' ? 4.5 : 6;
+    this.aimRaw = THREE.MathUtils.clamp((this.aimRaw || 0) + (wantAim ? dt : -dt) * aimSpeed, 0, 1);
+    this.aimT = this.aimRaw * this.aimRaw * (3 - 2 * this.aimRaw);
+    if (this.inspectT > 0) { this.inspectT -= dt; if (input.mouseL || input.mouseR) this.inspectT = 0; }
 
     const ready = this.swapT <= 0 && this.reloadT <= 0 && this.cooldown <= 0 && game.player.alive;
     // A click slightly too early is remembered for a moment ("input buffer"),
     // so semi-auto weapons don't feel like they ignore you.
     this.fireBuffer = input.mouseLPressed && !ready ? 0.25 : Math.max(0, (this.fireBuffer || 0) - dt);
 
-    if (this.current === 'bow') {
+    if (this.current === 'knife') {
+      // Left = fast slash (alternating left/right), right = heavy stab.
+      if (ready && input.mouseR) this.fire(true);
+      else if (ready && (input.mouseL || this.fireBuffer > 0)) { this.fireBuffer = 0; this.fire(false); }
+    } else if (this.current === 'bow') {
       // Hold left OR right to draw; releasing LEFT shoots, releasing right alone cancels.
       const drawing = (input.mouseL || input.mouseR) && ready && a.mag > 0;
       if (drawing) {
@@ -182,23 +197,30 @@ export class WeaponSystem {
   }
 
   // ------------------------------------------------------------------ firing
-  fire() {
+  fire(heavy = false) {
     const game = this.game, d = this.def, id = this.current, a = this.ammo[id];
-    this.cooldown = d.rate;
+    this.cooldown = heavy ? d.heavyRate : d.rate;
+    this.inspectT = 0;
     const cam = game.camera;
     cam.getWorldDirection(_dir);
     _right.setFromMatrixColumn(cam.matrixWorld, 0);
     _up.setFromMatrixColumn(cam.matrixWorld, 1);
 
     if (d.type === 'melee') {
-      this.swingT = 0.3;
+      this.swingT = heavy ? 0.55 : 0.32;
+      this.swingDur = this.swingT;
+      this.swingHeavy = heavy;
+      this.swingSide = heavy ? 0 : -(this.swingSide || 1); // alternate left / right slashes
       game.sound.knife();
-      this.melee(d);
+      game.player.punch(heavy ? 0.03 : 0.012, heavy ? 0 : this.swingSide * 0.015);
+      this.melee(d, heavy);
       return;
     }
     if (d.mag) a.mag--;
     this.kick = Math.min(1.5, this.kick + (id === 'sniper' ? 1.2 : id === 'rpg' ? 1.0 : 0.35));
     game.player.addRecoil(d.recoil * (1 - this.aimT * 0.5));
+    game.player.punch(d.recoil * 0.25, (Math.random() - 0.5) * d.recoil * 0.3);
+    this.kickV = (this.kickV || 0) + (id === 'sniper' || id === 'rpg' ? 9 : 4);
     if (id !== 'bow') { this.flashT = 0.05; game.muzzleFlash(); }
     game.sound[id === 'bow' ? 'bowShot' : id]();
     game.stats.shots++;
@@ -215,22 +237,26 @@ export class WeaponSystem {
   }
 
   // Knife: hit the closest enemy in front of us within range.
-  melee(d) {
+  melee(d, heavy) {
+    const range = heavy ? d.heavyRange : d.range;
     const game = this.game, eye = game.player.eye();
     const fwd = _v2.set(_dir.x, 0, _dir.z).normalize();
     let best = null, bestD = Infinity;
     for (const e of game.enemies.list) {
+      if (!e.alive) continue;
       const c = e.center(_v);
       const dx = c.x - eye.x, dz = c.z - eye.z;
       const dist = Math.hypot(dx, dz) - e.radius;
-      if (dist > d.range || Math.abs(c.y - eye.y) > e.height) continue;
+      if (dist > range || Math.abs(c.y - eye.y) > e.height) continue;
       const dot = (dx * fwd.x + dz * fwd.z) / (Math.hypot(dx, dz) || 1);
       if (dot < Math.cos(d.arc)) continue;
       if (dist < bestD) { bestD = dist; best = e; }
     }
     if (best) {
       const c = best.center(new THREE.Vector3());
-      game.hitEnemy(best, d.damage, false, c, 'knife');
+      // Normal enemies: always a one-hit kill. Boss: a big chunk of its health.
+      const dmg = best.type === 'boss' ? best.maxHp * (heavy ? d.heavyBossFrac : d.bossFrac) : Math.max(d.damage, best.hp + 1);
+      game.hitEnemy(best, dmg, false, c, 'knife');
       game.effects.impact(c, null, best.def.color);
     }
   }
@@ -420,45 +446,125 @@ export class WeaponSystem {
   animateViewmodel(dt, input) {
     const m = this.models[this.current], d = this.def, p = this.game.player;
     const ud = m.userData;
-    // Weapon bob while walking, sway when looking around.
-    if (p.moving && p.onGround) this.bobT += dt * (p.sprinting ? 14 : 10);
-    const bobAmt = (p.moving && p.onGround ? (p.sprinting ? 0.022 : 0.012) : 0.002) * (1 - this.aimT * 0.9);
-    this.sway.x += (-input.lookDX * 0.0006 - this.sway.x) * Math.min(1, dt * 10);
-    this.sway.y += (input.lookDY * 0.0006 - this.sway.y) * Math.min(1, dt * 10);
-    this.sway.x = THREE.MathUtils.clamp(this.sway.x, -0.04, 0.04);
-    this.sway.y = THREE.MathUtils.clamp(this.sway.y, -0.04, 0.04);
-    this.kick = Math.max(0, this.kick - dt * 5);
+    const t = (this.animTime = (this.animTime || 0) + dt);
+    const S = this.springs || (this.springs = { swayX: spring(), swayY: spring(), kick: spring(), land: spring(), roll: spring() });
+
+    // --- movement bob: speed-based, bigger when sprinting, tiny when aiming ---
+    const speed = Math.hypot(p.vel.x, p.vel.z);
+    const speedK = p.onGround ? Math.min(1.3, speed / CONFIG.PLAYER.walkSpeed) : 0;
+    this.bobT += dt * speed * 1.55;
+    this.bobAmt = (this.bobAmt || 0) + (speedK * 0.014 - (this.bobAmt || 0)) * Math.min(1, dt * 8);
+    const bob = this.bobAmt * (1 - this.aimT * 0.85);
+    // --- idle breathing ---
+    const breath = 1 - Math.min(1, speedK);
+    const breathY = Math.sin(t * 1.7) * 0.004 * breath * (1 - this.aimT * 0.8);
+    const breathX = Math.sin(t * 0.85) * 0.003 * breath * (1 - this.aimT * 0.8);
+    // --- mouse-look sway: the gun lags behind the view (spring) ---
+    S.swayX.step(THREE.MathUtils.clamp(-input.lookDX * 0.0009, -0.05, 0.05) * (1 - this.aimT * 0.7), 120, 14, dt);
+    S.swayY.step(THREE.MathUtils.clamp(input.lookDY * 0.0009, -0.05, 0.05) * (1 - this.aimT * 0.7), 120, 14, dt);
+    // --- recoil kick: impulse into a spring that settles back ---
+    if (this.kickV) { S.kick.v += this.kickV; this.kickV = 0; }
+    S.kick.step(0, 260, 18, dt);
+    this.kick = Math.max(0, this.kick - dt * 5); // (used for crosshair bloom)
+    // --- landing dip after a jump ---
+    if (p.landImpact) { S.land.v -= Math.min(12, p.landImpact) * 0.06; p.landImpact = 0; }
+    S.land.step(0, 140, 12, dt);
+    // --- strafe roll ---
+    const strafe = p.vel.x * Math.cos(this.game.camera.rotation.y) - p.vel.z * Math.sin(this.game.camera.rotation.y);
+    S.roll.step(-strafe * 0.006 * (1 - this.aimT), 90, 14, dt);
 
     const rest = ud.rest, aim = ud.aim || rest;
     const pos = _v.copy(rest).lerp(aim, this.aimT);
-    pos.x += Math.cos(this.bobT) * bobAmt + this.sway.x;
-    pos.y += -Math.abs(Math.sin(this.bobT)) * bobAmt + this.sway.y;
-    pos.z += this.kick * 0.06;
-    // reload: dip down and tilt
-    let tilt = 0;
-    if (this.reloadT > 0) {
-      const t = 1 - this.reloadT / d.reload;
-      const k = Math.sin(t * Math.PI);
-      pos.y -= k * 0.12; tilt = k * 0.6;
-    }
-    if (this.swapT > 0) pos.y -= (this.swapT / 0.35) * 0.3;
-    if (p.sprinting && this.aimT < 0.1) { pos.x -= 0.03; tilt -= 0.25; }
-    m.position.copy(pos);
+    pos.x += Math.cos(this.bobT * 0.5) * bob + S.swayX.x + breathX;
+    pos.y += -Math.abs(Math.sin(this.bobT * 0.5)) * bob * 1.2 + S.swayY.x + breathY + S.land.x;
+    pos.z += S.kick.x * 0.012;
     const rr = ud.restRot || { x: 0, y: 0, z: 0 };
-    m.rotation.set(rr.x + this.kick * 0.12 + tilt * 0.3, rr.y + (p.sprinting && this.aimT < 0.1 ? 0.5 : 0), rr.z * (1 - this.aimT) + tilt);
+    let rx = rr.x + S.kick.x * 0.03 + S.swayY.x * 2 - S.land.x * 2;
+    let ry = rr.y + S.swayX.x * 2.5;
+    let rz = rr.z * (1 - this.aimT) + S.roll.x + S.swayX.x * 1.5;
 
-    // Knife swing animation
+    // --- sprint pose ---
+    this.sprintK = (this.sprintK || 0) + (((p.sprinting && this.aimT < 0.1 && this.reloadT <= 0) ? 1 : 0) - (this.sprintK || 0)) * Math.min(1, dt * 8);
+    pos.x -= this.sprintK * 0.04; pos.y -= this.sprintK * 0.03; ry += this.sprintK * 0.55; rz -= this.sprintK * 0.25;
+
+    // --- reload: lower + tilt, magazine out and back in, rack at the end ---
+    if (ud.mag) ud.mag.position.copy(ud.magBase), ud.mag.rotation.z = 0, ud.mag.visible = true;
+    if (this.reloadT > 0 && d.reload > 0) {
+      const r = 1 - this.reloadT / d.reload;                  // 0 -> 1 over the reload
+      const env = smooth(r / 0.18) * (1 - smooth((r - 0.82) / 0.18));
+      pos.y -= env * 0.05; pos.x -= env * 0.03; rz += env * 0.38; rx -= env * 0.08; ry -= env * 0.15;
+      if (ud.mag) {
+        const out = smooth((r - 0.2) / 0.2) * (1 - smooth((r - 0.5) / 0.22));
+        ud.mag.position.y = ud.magBase.y - out * 0.28;
+        ud.mag.rotation.z = out * 0.4;
+        ud.mag.visible = out < 0.95;
+        if (r > 0.42 && r < 0.48 && !this.magSound) { this.magSound = true; this.game.sound.reload(); }
+      }
+      if (ud.drum) ud.drum.rotation.y = smooth((r - 0.25) / 0.5) * Math.PI * 2; // spin the drum
+      if (this.current === 'rpg') {       // new rocket slides into the front of the tube
+        ud.loaded.visible = r > 0.35;
+        ud.loaded.position.z = -(1 - smooth((r - 0.35) / 0.35)) * 0.35;
+        rx -= env * 0.25;
+      }
+      const rack = Math.max(0, 1 - Math.abs(r - 0.86) / 0.05);  // little "slide rack" bump
+      pos.z += rack * 0.025; rx += rack * 0.08;
+    } else {
+      this.magSound = false;
+      if (this.current === 'rpg') { ud.loaded.visible = this.ammo.rpg.mag > 0; ud.loaded.position.z = 0; }
+    }
+
+    // --- equip / draw animation (ease-out-back from below) ---
+    if (this.swapT > 0) {
+      const e = easeOutBack(1 - this.swapT / SWAP_TIME), k = 1 - e;
+      pos.y -= k * 0.32; pos.x += k * 0.05; rx -= k * 0.9; rz += k * 0.45;
+    }
+
+    // --- inspect (Y) ---
+    if (this.inspectT > 0) {
+      const q = 1 - this.inspectT / INSPECT_TIME;
+      const env = smooth(q / 0.2) * (1 - smooth((q - 0.8) / 0.2));
+      if (this.current === 'knife') {
+        ry += env * 0.9; rx -= env * 0.3;
+        rz += smooth((q - 0.3) / 0.35) * Math.PI * 2 * (q < 0.95 ? 1 : 1);   // flip the knife
+      } else {
+        ry += env * (1.1 + Math.sin(q * Math.PI * 2) * 0.25); rz += env * 0.55;
+        pos.x -= env * 0.09; pos.y += env * 0.03; pos.z += env * 0.04;
+      }
+    }
+
+    // --- knife slash arcs (alternating) and heavy stab ---
     if (this.current === 'knife' && this.swingT > 0) {
       this.swingT -= dt;
-      const k = Math.sin((1 - this.swingT / 0.3) * Math.PI);
-      m.rotation.y += k * -1.2; m.rotation.x -= k * 0.5; m.position.x -= k * 0.15; m.position.z -= k * 0.1;
+      const q = 1 - Math.max(0, this.swingT) / this.swingDur;
+      if (this.swingHeavy) {
+        const wind = smooth(q / 0.35), thrust = smooth((q - 0.35) / 0.2), back = smooth((q - 0.65) / 0.35);
+        const f = wind * (1 - thrust) * 0.08 - thrust * (1 - back) * 0.28;
+        pos.z += f; pos.y += thrust * (1 - back) * 0.03; rx += wind * 0.4 * (1 - thrust) - thrust * (1 - back) * 0.6;
+        pos.x -= thrust * (1 - back) * 0.12;
+      } else {
+        const side = this.swingSide;
+        const arc = Math.sin(q * Math.PI);               // out and back
+        const sweep = easeInOut(q) * 2 - 1;              // -1 -> 1 across the screen
+        pos.x += -side * sweep * 0.18 * arc - 0.05 * arc;
+        pos.y += arc * 0.05 - Math.abs(sweep) * 0.02 * arc;
+        pos.z -= arc * 0.12;
+        ry += side * sweep * 1.0 * arc; rz += side * arc * 0.8; rx -= arc * 0.3;
+      }
     }
-    // Bow: string/arrow follow the draw
+
+    m.position.copy(pos);
+    m.rotation.set(rx, ry, rz);
+
+    // Bow: string/arrow follow the draw; a new arrow is nocked from below.
     if (this.current === 'bow') {
-      setBowDraw(m, this.charge, this.ammo.bow.mag > 0);
+      const has = this.ammo.bow.mag > 0;
+      if (has && !this.hadArrow) this.nockT = 0.3;
+      this.hadArrow = has;
+      setBowDraw(m, this.charge, has);
+      if (this.nockT > 0) { this.nockT -= dt; ud.arrow.position.y = -Math.max(0, this.nockT / 0.3) * 0.15; ud.arrow.rotation.x = Math.max(0, this.nockT / 0.3) * 0.5; }
+      else { ud.arrow.position.y = 0; ud.arrow.rotation.x = 0; }
       m.position.z += this.charge * 0.05;
     }
-    if (this.current === 'rpg') ud.loaded.visible = this.ammo.rpg.mag > 0;
     // Hide the gun when looking through the sniper scope.
     m.visible = !this.scoped;
 
@@ -467,3 +573,12 @@ export class WeaponSystem {
     if (this.flashMesh.visible) this.flashMesh.rotation.z = Math.random() * 3;
   }
 }
+
+// ---- small animation helpers ----
+// A damped spring: x follows a target with a little overshoot (feels "physical").
+function spring() {
+  return { x: 0, v: 0, step(target, k, damp, dt) { this.v += ((target - this.x) * k - this.v * damp) * dt; this.x += this.v * dt; } };
+}
+const smooth = (x) => { x = Math.min(1, Math.max(0, x)); return x * x * (3 - 2 * x); };
+const easeInOut = (x) => (x < 0.5 ? 2 * x * x : 1 - Math.pow(-2 * x + 2, 2) / 2);
+const easeOutBack = (x) => { const c1 = 1.70158, c3 = c1 + 1; return 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2); };
