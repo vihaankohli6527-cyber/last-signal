@@ -27,13 +27,33 @@ export const CONFIG = {
     radius: 0.45,           // collision size
     walkSpeed: 6.0,
     sprintSpeed: 9.5,
-    jumpSpeed: 7.0,
-    gravity: 20,
+    jumpSpeed: 7.6,
+    gravity: 24,           // snappier, less floaty jumps
     maxHp: 150,
     maxArmour: 100,
     armourAbsorb: 0.66,     // armour soaks up 66% of incoming damage while it lasts
     healBetweenWaves: 0.4,  // fraction of max HP restored after each wave
     mouseSensitivity: 1.0,
+    // Crouch / slide
+    crouchHeight: 1.05,     // eye height while crouched
+    crouchSpeed: 3.2,
+    crouchSpread: 0.65,     // weapon spread multiplier while crouched
+    slideSpeed: 14.0,       // burst speed at the start of a slide
+    slideTime: 0.7,         // seconds for the slide to decay
+    slideCooldown: 1.0,
+  },
+
+  // Key bindings (KeyboardEvent.code values). Change these to rebind; each action takes a list.
+  KEYS: {
+    forward: ['KeyW', 'ArrowUp'],
+    back: ['KeyS', 'ArrowDown'],
+    left: ['KeyA', 'ArrowLeft'],
+    right: ['KeyD', 'ArrowRight'],
+    sprint: ['ShiftLeft', 'ShiftRight'],
+    jump: ['Space'],
+    crouch: ['KeyC'],
+    reload: ['KeyR'],
+    inspect: ['KeyY'],
   },
 
   TOWER: {

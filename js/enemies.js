@@ -434,7 +434,8 @@ export class EnemyManager {
       let hit = false;
       // hit player? (capsule approx: distance to the vertical line of the body)
       const pdx = p.x - pEye.x, pdz = p.z - pEye.z;
-      if (game.player.alive && pdx * pdx + pdz * pdz < 0.55 * 0.55 && p.y < pEye.y + 0.3 && p.y > pEye.y - 1.8) {
+      const pr = game.player.crouched ? 0.42 : 0.55;   // crouching = smaller target
+      if (game.player.alive && pdx * pdx + pdz * pdz < pr * pr && p.y < pEye.y + 0.25 && p.y > game.player.pos.y - 0.1) {
         game.damagePlayer(s.damage, p); hit = true;
       } else if (Math.hypot(p.x, p.z) < CONFIG.TOWER.radius + 0.3 && p.y < game.world.towerTop.y) {
         game.damageTower(s.damage, p); hit = true;

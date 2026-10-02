@@ -143,7 +143,8 @@ export class WeaponSystem {
     const d = this.def, p = this.game.player;
     if (!d.spread && !d.aimSpread) return 0;
     let s = d.spread + (d.aimSpread - d.spread) * this.aimT;
-    if (p.moving) s *= 1.6;
+    if (p.moving && !p.crouched) s *= 1.6;
+    if (p.crouched && p.onGround) s *= CONFIG.PLAYER.crouchSpread * (p.moving ? 1.3 : 1);
     if (!p.onGround) s *= 2.5;
     return s + this.kick * 0.05;
   }
@@ -451,7 +452,7 @@ export class WeaponSystem {
 
     // --- movement bob: speed-based, bigger when sprinting, tiny when aiming ---
     const speed = Math.hypot(p.vel.x, p.vel.z);
-    const speedK = p.onGround ? Math.min(1.3, speed / CONFIG.PLAYER.walkSpeed) : 0;
+    const speedK = p.onGround && !p.sliding ? Math.min(1.3, speed / CONFIG.PLAYER.walkSpeed) : 0;
     this.bobT += dt * speed * 1.55;
     this.bobAmt = (this.bobAmt || 0) + (speedK * 0.014 - (this.bobAmt || 0)) * Math.min(1, dt * 8);
     const bob = this.bobAmt * (1 - this.aimT * 0.85);
@@ -486,6 +487,11 @@ export class WeaponSystem {
     // --- sprint pose ---
     this.sprintK = (this.sprintK || 0) + (((p.sprinting && this.aimT < 0.1 && this.reloadT <= 0) ? 1 : 0) - (this.sprintK || 0)) * Math.min(1, dt * 8);
     pos.x -= this.sprintK * 0.04; pos.y -= this.sprintK * 0.03; ry += this.sprintK * 0.55; rz -= this.sprintK * 0.25;
+
+    // --- crouch / slide pose: weapon drops and cants during a slide ---
+    pos.y -= (p.slideK || 0) * 0.06 + (p.crouchK || 0) * 0.008;
+    pos.x -= (p.slideK || 0) * 0.03;
+    rz += (p.slideK || 0) * 0.35; rx += (p.slideK || 0) * 0.1;
 
     // --- reload: lower + tilt, magazine out and back in, rack at the end ---
     if (ud.mag) ud.mag.position.copy(ud.magBase), ud.mag.rotation.z = 0, ud.mag.visible = true;

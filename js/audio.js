@@ -91,6 +91,7 @@ export const Sound = {
   reload()  { this.tone(700, 500, 0.05, 'square', 0.04); this.tone(900, 1100, 0.05, 'square', 0.04, 0.25); },
   swap()    { this.tone(500, 800, 0.06, 'triangle', 0.04); },
   explosion(vol = 0.7) { this.noise(1.1, vol, 'lowpass', 1800, 60); this.tone(90, 30, 0.9, 'sine', vol * 0.5); },
+  slide()   { this.noise(0.75, 0.22, 'bandpass', 1400, 250); this.noise(0.3, 0.08, 'highpass', 4000, 2000); },
   bounce()  { this.tone(300, 260, 0.04, 'triangle', 0.05); },
 
   // ---- Feedback ----

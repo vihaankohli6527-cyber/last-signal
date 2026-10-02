@@ -612,6 +612,10 @@ class Game {
       if (e.repeat) return;
       this.keys[e.code] = true;
       this.onKey(e.code);
+      if (this.state === 'playing' && !this.market.open) {
+        if (CONFIG.KEYS.crouch.includes(e.code)) this.player.crouchTap = true;
+        if (CONFIG.KEYS.jump.includes(e.code)) this.player.jumpTap = true;
+      }
     });
     window.addEventListener('keyup', (e) => { this.keys[e.code] = false; });
     window.addEventListener('blur', () => { this.keys = {}; this.input.mouseL = this.input.mouseR = false; });
@@ -668,8 +672,8 @@ class Game {
           return;
         }
         if (code.startsWith('Digit')) this.weapons.selectSlot(+code.slice(5));
-        else if (code === 'KeyR') this.weapons.reload();
-        else if (code === 'KeyY') this.weapons.inspect();
+        else if (CONFIG.KEYS.reload.includes(code)) this.weapons.reload();
+        else if (CONFIG.KEYS.inspect.includes(code)) this.weapons.inspect();
         else if (code === 'KeyQ') this.weapons.cycle(-1);
         else if (code === 'KeyB') this.tryOpenMarket();
         else if ((code === 'Enter' || code === 'KeyN') && this.phase === 'intermission') this.startWave();
