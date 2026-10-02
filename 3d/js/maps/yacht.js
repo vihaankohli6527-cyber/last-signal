@@ -1,12 +1,13 @@
 /* Map: YACHT — the sun deck of a luxury yacht, alone on the ocean at sunset.
    Deck furniture is the cover, railings all round (you can't fall off:
    the arena edge stops you), and an animated low-poly sea. */
-import { canvasTexture } from '../world.js?v=0c35b74f43';
+import { canvasTexture } from '../world.js?v=e898eff5dd';
 
 export const MAP = {
   id: 'yacht',
   name: 'Yacht',
   desc: 'Sunset on the open sea. Defend the radar mast from the deck chairs.',
+  mood: 'Sunset · Open deck', difficulty: 'Medium',   // shown on the map select screen
   card: ['#ff7a3a', '#3a1a5a'],
   halfX: 14, halfZ: 40, wallHeight: 1.2,
   bloom: [0.55, 0.5, 0.95],

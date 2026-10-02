@@ -1,11 +1,12 @@
 /* Map: GRAVEYARD — an old cemetery at midnight.
    Rows of tombstones, dead trees, mausoleums, an iron fence, moonlight and green mist. */
-import { canvasTexture } from '../world.js?v=0c35b74f43';
+import { canvasTexture } from '../world.js?v=e898eff5dd';
 
 export const MAP = {
   id: 'graveyard',
   name: 'Graveyard',
   desc: 'Moonlit cemetery. Tombstones, dead trees and a creeping green mist.',
+  mood: 'Spooky · Low visibility', difficulty: 'Hard',   // shown on the map select screen
   card: ['#0b1a14', '#7dff9a'],
   halfX: 40, halfZ: 40, wallHeight: 2.6,
   playerSpawn: [0, 0, 10],

@@ -5,7 +5,7 @@
    Each builder returns a Group with userData.muzzle (where the flash goes).
    ========================================================================= */
 import * as THREE from '../lib/three.module.js';
-import { surface } from './textures.js?v=0c35b74f43';
+import { surface } from './textures.js?v=e898eff5dd';
 
 // PBR materials: metal parts reflect the environment map, polymer has a fine
 // stipple, paint and wood get their own grain (procedural textures).

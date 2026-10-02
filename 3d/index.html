@@ -1,11 +1,20 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta name="app-version" content="0c35b74f43" />
-      <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="app-version" content="e898eff5dd" />
+        <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <!-- Phones / tablets: full-screen when added to the home screen (iOS Safari has no Fullscreen API) -->
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Last Signal 3D" />
+  <meta name="theme-color" content="#05080d" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="icons/icon-180.png" />
+  <link rel="icon" type="image/png" href="icons/icon-192.png" />
   <title>Last Signal 3D</title>
-  <link rel="stylesheet" href="css/style.css?v=0c35b74f43" />
+  <link rel="stylesheet" href="css/style.css?v=e898eff5dd" />
 </head>
 <body>
   <!-- The 3D view is drawn into this canvas -->
@@ -60,7 +69,12 @@
       <button id="btn-play" class="btn primary">PLAY</button>
       <button id="btn-title-settings" class="btn">SETTINGS</button>
       <div id="best-score" class="best"></div>
-      <div class="controls-grid">
+      <div class="controls-grid touch-only">
+        <div><b>LEFT STICK</b> move · push far to sprint</div><div><b>DRAG RIGHT</b> look</div><div><b>FIRE</b> hold (drag to aim)</div>
+        <div><b>AIM</b> scope on/off</div><div><b>JUMP</b> · <b>SLIDE</b> crouch / slide</div><div><b>↻</b> reload · <b>⇄</b> switch</div>
+        <div><b>SLOTS</b> tap to equip</div><div><b>🛒</b> market · <b>❚❚</b> pause</div><div><b>⛶</b> fullscreen / add to home screen</div>
+      </div>
+      <div class="controls-grid desktop-only">
         <div><b>WASD</b> move</div><div><b>SHIFT</b> sprint</div><div><b>SPACE</b> jump</div>
         <div><b>LMB</b> fire</div><div><b>RMB</b> aim / scope / draw</div><div><b>R</b> reload</div>
         <div><b>C</b> crouch · sprint+C slide</div><div><b>Y</b> inspect</div><div><b>B</b> market</div>
@@ -72,12 +86,26 @@
   <!-- ================= Map select ================= -->
   <div id="mapselect" class="screen hidden">
     <h2 class="screen-title">SELECT STARTING AREA</h2>
-    <p class="screen-sub">Clear 10 waves and the rescue ship flies you to the next area. The campaign never ends — only you do.</p>
-    <div id="map-cards"></div>
-    <div class="row">
-      <button id="btn-map-back" class="btn">BACK</button>
-      <button id="btn-map-go" class="btn primary">DEPLOY</button>
+    <div class="ms-main">
+      <!-- The real map renders behind this transparent pane (slow fly-around); pictures are the fallback on LOW / slow devices -->
+      <div id="map-preview"><div id="mp-img-a" class="mp-img"></div><div id="mp-img-b" class="mp-img"></div><span class="mp-live">● LIVE PREVIEW</span></div>
+      <div id="map-info">
+        <div id="mi-num"></div>
+        <div id="mi-name"></div>
+        <div id="mi-tags"></div>
+        <div id="mi-desc"></div>
+        <p class="mi-help desktop-only">Hover to preview · click to select · ←/→ to browse · Enter to deploy</p>
+        <p class="mi-help touch-only-b">Tap a map to preview · tap it again (or DEPLOY) to start</p>
+        <p class="screen-sub">Clear 10 waves and the rescue ship flies you to the next area. The campaign never ends — only you do.</p>
+        <div class="row">
+          <button id="btn-map-back" class="btn">BACK</button>
+          <button id="btn-map-go" class="btn primary">DEPLOY</button>
+        </div>
+      </div>
     </div>
+    <div id="map-cards"></div>
+  </div>
+  <canvas id="map-fade"></canvas>
   </div>
 
   <!-- ================= Market ================= -->
@@ -120,6 +148,7 @@
     <div class="settings settings-grid">
       <div class="sec">CONTROLS</div>
       <label>Mouse sensitivity <span class="ctl"><input type="range" id="opt-sens" min="0.1" max="4" step="0.05" /><output id="val-sens"></output></span></label>
+      <label>Touch look sensitivity <span class="ctl"><input type="range" id="opt-touchsens" min="0.3" max="4" step="0.05" /><output id="val-touchsens"></output></span></label>
       <label>Scoped / ADS multiplier <span class="ctl"><input type="range" id="opt-ads" min="0.2" max="2" step="0.05" /><output id="val-ads"></output></span></label>
       <label>Invert Y <input type="checkbox" id="opt-invert" /></label>
       <label>Field of view <span class="ctl"><input type="range" id="opt-fov" min="60" max="110" step="1" /><output id="val-fov"></output></span></label>
@@ -169,6 +198,6 @@
   <div id="fps" class="hidden"></div>
   <div id="error" class="hidden"></div>
 
-  <script type="module" src="js/main.js?v=0c35b74f43"></script>
+  <script type="module" src="js/main.js?v=e898eff5dd"></script>
 </body>
 </html>

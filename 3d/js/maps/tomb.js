@@ -1,11 +1,12 @@
 /* Map: ALIEN TOMB — ruins of an ancient alien temple.
    Stone pillars with glowing purple/teal runes, sarcophagi as cover, thick mist. */
-import { canvasTexture } from '../world.js?v=0c35b74f43';
+import { canvasTexture } from '../world.js?v=e898eff5dd';
 
 export const MAP = {
   id: 'tomb',
   name: 'Alien Tomb',
   desc: 'A buried temple of a dead race. Runes still pulse in the mist.',
+  mood: 'Eerie · Misty ruins', difficulty: 'Hard',   // shown on the map select screen
   card: ['#1a0f2e', '#2fffd2'],
   halfX: 40, halfZ: 40, wallHeight: 7,
   playerSpawn: [0, 0, 10],

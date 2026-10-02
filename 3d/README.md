@@ -43,6 +43,22 @@ Key bindings live in `CONFIG.KEYS` in `js/config.js` (each action takes a list o
 | Enter / N | start the next wave (buy phase) |
 | Esc / P | pause (bloom, shadows, resolution, sensitivity, mute, FPS) |
 | G | toggle bloom · **M** mute |
+| ←/→ (map select) | browse maps with a live preview · **Enter** deploy |
+
+### Touch (phones / tablets)
+Touch mode is detected automatically (`pointer: coarse`, or the first touch). Force it with `?touch=1`. On touch devices there is no pointer lock and the default preset is Low.
+
+| Control | Action |
+|---|---|
+| Left joystick (floating) | move. Push all the way forward to sprint |
+| Drag on the right half | look (uses mouse sensitivity × **Touch look sensitivity**) |
+| FIRE (hold) | fire. Drag from the button to aim while firing |
+| AIM | aim / scope toggle |
+| JUMP / SLIDE | jump / crouch while held. Sprint + SLIDE = slide |
+| ↻ / ⇄ / weapon slots | reload / next weapon / tap a slot to equip |
+| 🛒 / ❚❚ / ⛶ | market / pause / fullscreen (where supported; on iOS use Add to Home Screen, which is supported via the manifest and apple-mobile-web-app meta tags) |
+
+Map select: the first tap previews a map, and a second tap (or DEPLOY) starts it. The preview pane shows the real map with a slow fly-around camera; built maps are cached. With `?preview=image` or `?preview=live` you can force a mode. The Low preset or under 20 FPS uses the pictures in `img/maps/`.
 
 ## Files
 - `index.html`, `css/style.css`: page, HUD and all the menus (title, map select, market, pause, cutscene, game over)

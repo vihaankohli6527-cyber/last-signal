@@ -1,6 +1,6 @@
 /* Map: BOX — a clean, bright training map made of big blocks.
    Prototype "grid" textures, like a practice range / aim map. */
-import { canvasTexture } from '../world.js?v=0c35b74f43';
+import { canvasTexture } from '../world.js?v=e898eff5dd';
 
 // Grid texture like a level-designer prototype material.
 function gridTex(base, line, repeat) {
@@ -16,6 +16,7 @@ export const MAP = {
   id: 'box',
   name: 'Box',
   desc: 'Clean training arena. Big blocks, long sightlines, no excuses.',
+  mood: 'Training · Open arena', difficulty: 'Easy',   // shown on the map select screen
   card: ['#cfe6ff', '#ff4655'],
   halfX: 36, halfZ: 36, wallHeight: 6,
   bloom: [0.25, 0.4, 1.2],   // bright daytime map: gentle glow only

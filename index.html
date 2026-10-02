@@ -2,18 +2,35 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <!-- Phones / tablets: full-screen when added to the home screen -->
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Last Signal">
+  <meta name="theme-color" content="#05080d">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="icons/icon-180.png">
+  <link rel="icon" type="image/png" href="icons/icon-192.png">
   <title>Last Signal</title>
-  <link rel="stylesheet" href="css/style.css?v=0874892b6d">
+  <link rel="stylesheet" href="css/style.css?v=1238e5640d">
 </head>
 <body>
   <!-- The whole game is drawn on this one canvas. -->
   <canvas id="game" width="1280" height="720"></canvas>
 
+  <!-- Shown on phones held upright (see touch.js) -->
+  <div id="rotate">
+    <div class="rotate-icon">📱↻</div>
+    <p>Rotate your device to landscape<br>for the best view.</p>
+    <button id="rotate-dismiss">Play anyway</button>
+  </div>
+
   <!-- Scripts are loaded in order: settings first, then helpers, then the main game loop. -->
-  <script src="js/config.js?v=0874892b6d"></script>
-  <script src="js/audio.js?v=0874892b6d"></script>
-  <script src="js/entities.js?v=0874892b6d"></script>
-  <script src="js/game.js?v=0874892b6d"></script>
+  <script src="js/config.js?v=1238e5640d"></script>
+  <script src="js/audio.js?v=1238e5640d"></script>
+  <script src="js/entities.js?v=1238e5640d"></script>
+  <script src="js/touch.js?v=1238e5640d"></script>
+  <script src="js/game.js?v=1238e5640d"></script>
 </body>
 </html>

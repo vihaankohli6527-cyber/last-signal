@@ -12,6 +12,12 @@ src = pathlib.Path(sys.argv[1] if len(sys.argv) > 1 else '/workspace/last-signal
 for d in ('css', 'js'):
     if (repo / d).exists(): shutil.rmtree(repo / d)
     shutil.copytree(src / d, repo / d)
+# Home-screen / PWA bits (manifest + icons)
+if (src / 'icons').exists():
+    if (repo / 'icons').exists(): shutil.rmtree(repo / 'icons')
+    shutil.copytree(src / 'icons', repo / 'icons')
+if (src / 'manifest.webmanifest').exists():
+    shutil.copy(src / 'manifest.webmanifest', repo / 'manifest.webmanifest')
 html = (src / 'index.html').read_text()
 
 h = hashlib.sha256()

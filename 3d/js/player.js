@@ -4,8 +4,8 @@
    camera shake. Mouse-look itself is done by PointerLockControls (main.js).
    ========================================================================= */
 import * as THREE from '../lib/three.module.js';
-import { Sound } from './audio.js?v=0c35b74f43';
-import { CONFIG } from './config.js?v=0c35b74f43';
+import { Sound } from './audio.js?v=e898eff5dd';
+import { CONFIG } from './config.js?v=e898eff5dd';
 
 const P = CONFIG.PLAYER;
 const _fwd = new THREE.Vector3(), _right = new THREE.Vector3(), _eye = new THREE.Vector3();
@@ -28,6 +28,7 @@ export class Player {
       this.armour = 0;
     }
     this.alive = true;
+    this.touchMove = null; // set every frame by touch.js on phones / tablets
     this.onGround = true;
     this.moving = false;
     this.sprinting = false;
@@ -102,6 +103,14 @@ export class Player {
     if (down(K.back)) { mx -= _fwd.x; mz -= _fwd.z; }
     if (down(K.right)) { mx += _right.x; mz += _right.z; }
     if (down(K.left)) { mx -= _right.x; mz -= _right.z; }
+    // Touch joystick (analog): only when no movement keys are held.
+    const tm = this.touchMove;
+    let analog = 1, touchFwd = false, touchSprint = false;
+    if (tm && tm.mag > 0.12 && !mx && !mz) {
+      mx = _fwd.x * tm.y + _right.x * tm.x; mz = _fwd.z * tm.y + _right.z * tm.x;
+      analog = Math.min(1, tm.mag * 1.25);
+      touchFwd = tm.y > 0.5 * tm.mag; touchSprint = tm.sprint;
+    }
     const len = Math.hypot(mx, mz);
     this.moving = len > 0;
     const crouchKey = down(K.crouch);
@@ -110,7 +119,7 @@ export class Player {
     const jumpWanted = down(K.jump) || this.jumpTap;
     this.crouchTap = false; this.jumpTap = false;
     this.prevCrouchKey = crouchKey;
-    const wantSprint = this.moving && down(K.sprint) && !this.aiming && fwdKey;
+    const wantSprint = this.moving && (down(K.sprint) || touchSprint) && !this.aiming && (fwdKey || touchFwd);
 
     // --- slide: press C while sprinting (or already moving forward fast) ---
     // The press is buffered for a moment so slightly early/late taps still count.
@@ -138,7 +147,7 @@ export class Player {
     this.sprinting = wantSprint && !this.crouched;
 
     const speed = (this.crouched ? P.crouchSpeed : this.sprinting ? P.sprintSpeed : P.walkSpeed) * (this.aiming ? 0.6 : 1);
-    if (len > 0) { mx = mx / len * speed; mz = mz / len * speed; }
+    if (len > 0) { mx = mx / len * speed * analog; mz = mz / len * speed * analog; }
 
     if (this.sliding) {
       this.slideT -= dt;

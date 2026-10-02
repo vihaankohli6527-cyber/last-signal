@@ -215,3 +215,138 @@ button { font-family: inherit; }
 .ch-preview { grid-column: 1 / -1; position: relative; height: 60px; background: linear-gradient(90deg, #39424f, #8a8f80 50%, #2a2f3a); }
 #title .btn + .btn, #pause .row .btn { margin-top: 0; }
 #btn-title-settings { margin-top: 12px; }
+
+/* =====================================================================
+   Phones / tablets (body.touch is set by main.js on touch devices)
+   ===================================================================== */
+html, body { overscroll-behavior: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; -webkit-text-size-adjust: none; text-size-adjust: none; }
+body.touch, body.touch #game { touch-action: none; }
+body.touch .screen, body.touch #market, body.touch #settings { touch-action: manipulation; }   /* taps work, no double-tap zoom */
+body.touch .settings, body.touch #market { touch-action: pan-y; }
+.touch-only { display: none; }
+body.touch .touch-only { display: grid; }
+body.touch .desktop-only { display: none; }
+
+#touch-ui { position: fixed; inset: 0; z-index: 8; touch-action: none; -webkit-user-select: none; user-select: none; }
+#t-move-zone { position: absolute; left: 0; top: 0; bottom: 0; width: 45%; }
+#t-look-zone { position: absolute; right: 0; top: 0; bottom: 0; width: 55%; }
+#t-stick { position: absolute; left: 0; top: 0; width: 0; height: 0; pointer-events: none; }
+#t-stick::before { content: ''; position: absolute; left: -60px; top: -60px; width: 120px; height: 120px; border-radius: 50%;
+  border: 2px solid rgba(236,232,225,0.45); background: rgba(15,25,35,0.3); }
+#t-stick .knob { position: absolute; left: -28px; top: -28px; width: 56px; height: 56px; border-radius: 50%; background: rgba(236,232,225,0.55); box-shadow: 0 0 10px rgba(0,0,0,0.4); }
+#t-stick.sprint::before { border-color: var(--gold); }
+#t-stick.sprint .knob { background: rgba(255,194,61,0.75); }
+
+.tb { position: absolute; width: 64px; height: 64px; border-radius: 50%; border: 2px solid rgba(236,232,225,0.45); background: rgba(15,25,35,0.38);
+  color: rgba(236,232,225,0.92); font: 800 12px/1 "Segoe UI", Roboto, Arial, sans-serif; letter-spacing: 1px; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 2px; padding: 0; touch-action: none; -webkit-user-select: none; user-select: none; }
+.tb span { font-size: 8px; letter-spacing: 1px; opacity: 0.8; }
+.tb.down { background: rgba(236,232,225,0.35); transform: scale(0.94); }
+.tb.on { border-color: var(--cyan); color: var(--cyan); background: rgba(41,240,255,0.18); }
+.tb.glow { border-color: var(--gold); color: var(--gold); box-shadow: 0 0 14px rgba(255,194,61,0.6); }
+/* bottom-right thumb cluster (safe-area aware for the iPhone notch / home bar) */
+#tb-fire   { width: 96px; height: 96px; right: calc(env(safe-area-inset-right) + 22px);  bottom: calc(env(safe-area-inset-bottom) + 22px); font-size: 16px;
+  border-color: rgba(255,70,85,0.8); background: rgba(255,70,85,0.28); }
+#tb-fire.down { background: rgba(255,70,85,0.6); }
+#tb-aim    { right: calc(env(safe-area-inset-right) + 134px); bottom: calc(env(safe-area-inset-bottom) + 30px); }
+#tb-crouch { right: calc(env(safe-area-inset-right) + 116px); bottom: calc(env(safe-area-inset-bottom) + 110px); }
+#tb-jump   { right: calc(env(safe-area-inset-right) + 36px);  bottom: calc(env(safe-area-inset-bottom) + 132px); }
+#tb-reload { width: 54px; height: 54px; right: calc(env(safe-area-inset-right) + 212px); bottom: calc(env(safe-area-inset-bottom) + 26px); }
+#tb-switch { width: 54px; height: 54px; right: calc(env(safe-area-inset-right) + 196px); bottom: calc(env(safe-area-inset-bottom) + 100px); }
+/* top-right row: market, pause, fullscreen */
+#t-top { position: absolute; top: calc(env(safe-area-inset-top) + 64px); right: calc(env(safe-area-inset-right) + 14px); display: flex; gap: 8px; }
+#t-top .tb { position: static; width: 46px; height: 46px; border-radius: 10px; font-size: 16px; }
+#t-top #tb-market { width: 64px; }
+
+/* HUD rearranged so the thumbs don't cover it */
+body.touch-playing #hud { z-index: 9; padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
+body.touch-playing #tower-panel { left: calc(env(safe-area-inset-left) + 12px); top: calc(env(safe-area-inset-top) + 10px); }
+body.touch-playing #credits-panel { right: calc(env(safe-area-inset-right) + 14px); top: calc(env(safe-area-inset-top) + 10px); }
+body.touch-playing #vitals { bottom: auto; top: calc(env(safe-area-inset-top) + 74px); left: calc(env(safe-area-inset-left) + 12px); }
+body.touch-playing #weapon-panel { right: auto; left: 50%; transform: translateX(-50%); bottom: calc(env(safe-area-inset-bottom) + 6px); text-align: center; pointer-events: auto; }
+body.touch-playing #weapon-slots { justify-content: center; }
+body.touch-playing .slot { width: 46px; height: 38px; }
+body.touch-playing #killfeed { top: calc(env(safe-area-inset-top) + 120px); }
+body.touch-playing #hint { bottom: 50%; margin-bottom: 70px; }
+body.touch-playing #crosshair { display: block; }
+
+/* small screens (phones in landscape): shrink the HUD panels */
+@media (max-height: 520px) {
+  body.touch-playing #tower-panel, body.touch-playing #credits-panel, body.touch-playing #top-center, body.touch-playing #vitals,
+  body.touch-playing #weapon-panel, body.touch-playing #killfeed, body.touch-playing #hint { zoom: 0.62; }
+  body.touch-playing #weapon-panel { left: 42%; }
+  body.touch-playing #hint { white-space: nowrap; }
+  body.touch-playing #vitals { top: calc(env(safe-area-inset-top) + 110px); }
+  body.touch-playing #t-top { top: calc(env(safe-area-inset-top) + 48px); }
+  body.touch-playing #banner-title { font-size: 40px; letter-spacing: 6px; }
+  .tb { width: 56px; height: 56px; }
+  #tb-fire { width: 84px; height: 84px; right: calc(env(safe-area-inset-right) + 18px); bottom: calc(env(safe-area-inset-bottom) + 16px); }
+  #tb-aim    { right: calc(env(safe-area-inset-right) + 114px); bottom: calc(env(safe-area-inset-bottom) + 18px); }
+  #tb-crouch { right: calc(env(safe-area-inset-right) + 98px);  bottom: calc(env(safe-area-inset-bottom) + 90px); }
+  #tb-jump   { right: calc(env(safe-area-inset-right) + 28px);  bottom: calc(env(safe-area-inset-bottom) + 114px); }
+  #tb-reload { width: 48px; height: 48px; right: calc(env(safe-area-inset-right) + 182px); bottom: calc(env(safe-area-inset-bottom) + 14px); }
+  #tb-switch { width: 48px; height: 48px; right: calc(env(safe-area-inset-right) + 168px); bottom: calc(env(safe-area-inset-bottom) + 76px); }
+  /* menus: tighter so they fit a 390px-tall screen */
+  body.touch .screen { padding: 10px; justify-content: flex-start; overflow-y: auto; touch-action: pan-y; }
+  body.touch .screen-title { font-size: 28px; letter-spacing: 4px; margin-bottom: 4px; }
+  body.touch .screen-sub { margin-bottom: 10px; font-size: 13px; }
+  body.touch .logo .l1 { font-size: 40px; } body.touch .logo .l2 { font-size: 56px; } body.touch .logo .l3 { font-size: 18px; transform: translateY(-24px); }
+  body.touch .tagline { margin: 2px 0 12px; }
+  body.touch .controls-grid { margin-top: 14px; font-size: 11px; gap: 4px 18px; }
+  body.touch .map-card .ds { display: none; }
+  body.touch .row { margin-top: 12px; }
+  body.touch #market { padding: calc(env(safe-area-inset-top) + 8px) calc(env(safe-area-inset-right) + 14px) calc(env(safe-area-inset-bottom) + 8px) calc(env(safe-area-inset-left) + 14px); }
+  body.touch .mk-title { font-size: 24px; letter-spacing: 5px; } body.touch .mk-credits { font-size: 20px; }
+  body.touch .mk-body { gap: 14px; margin-top: 8px; } body.touch .mk-header { padding-bottom: 6px; }
+  body.touch .mk-footer { padding-top: 6px; margin-top: 6px; } body.touch #mk-tip { display: none; }
+  body.touch .settings-grid { max-height: 62vh; row-gap: 6px; }
+}
+/* bigger tap targets in menus */
+body.touch .btn { padding: 14px 34px; min-height: 48px; }
+body.touch input[type=range] { min-height: 32px; }
+
+/* ---------- map select: big live preview ---------- */
+#mapselect { background: none; justify-content: center; gap: 14px; }
+#mapselect .screen-title { margin-bottom: 0; text-shadow: 0 2px 10px #000; }
+.ms-main { display: flex; gap: 26px; align-items: stretch; width: min(1280px, 96vw); height: min(56vh, 520px); }
+#map-preview { position: relative; flex: 1.9; border: 2px solid rgba(236,232,225,0.55); overflow: hidden;
+  box-shadow: 0 0 0 200vmax rgba(5,8,14,0.74), 0 0 40px rgba(255,70,85,0.25) inset; clip-path: none; }
+.mp-img { position: absolute; inset: 0; background-size: cover; background-position: center; opacity: 0; transition: opacity .45s ease; }
+#map-preview.image-mode .mp-img.on { opacity: 1; }
+.mp-live { position: absolute; left: 10px; top: 8px; font-size: 11px; letter-spacing: 3px; color: var(--red); font-weight: 800; text-shadow: 0 1px 4px #000; }
+#map-preview.image-mode .mp-live { display: none; }
+#map-info { flex: 1; text-align: left; display: flex; flex-direction: column; justify-content: center; min-width: 0; }
+#mi-num { font-size: 12px; letter-spacing: 4px; color: var(--cyan); font-weight: 700; }
+#mi-name { font-size: 42px; font-weight: 900; letter-spacing: 5px; text-transform: uppercase; line-height: 1.1; margin: 4px 0 8px; }
+#mi-tags { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+.tag { font-size: 11px; letter-spacing: 2px; font-weight: 800; padding: 4px 10px; text-transform: uppercase; background: rgba(236,232,225,0.12); border: 1px solid rgba(236,232,225,0.35); }
+.tag.diff.easy { color: var(--green); border-color: var(--green); } .tag.diff.medium { color: var(--gold); border-color: var(--gold); } .tag.diff.hard { color: var(--red); border-color: var(--red); }
+#mi-desc { font-size: 15px; line-height: 1.45; opacity: 0.9; margin-bottom: 10px; }
+.mi-help { font-size: 12px; letter-spacing: 1px; color: var(--gold); opacity: 0.85; margin-bottom: 8px; }
+#map-info .screen-sub { font-size: 13px; margin-bottom: 0; }
+#map-info .row { justify-content: flex-start; margin-top: 16px; }
+.touch-only-b { display: none; } body.touch .touch-only-b { display: block; }
+#map-cards { grid-template-columns: repeat(5, minmax(120px, 210px)); gap: 12px; }
+.map-card .pv { aspect-ratio: 16/8; }
+.map-card .info { padding: 6px 10px 10px; }
+.map-card .ds { min-height: 0; }
+.map-card.hovered { border-color: rgba(41,240,255,0.8); }
+#map-fade { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 19; pointer-events: none; opacity: 0; }
+@media (max-height: 520px) {
+  .ms-main { height: 52vh; gap: 12px; }
+  #mapselect { gap: 6px; padding-top: calc(env(safe-area-inset-top) + 6px); }
+  #mi-name { font-size: 24px; margin: 2px 0 4px; } #mi-desc { font-size: 12px; margin-bottom: 4px; }
+  #map-info .screen-sub, .mi-help.desktop-only { display: none; }
+  #map-info .row { margin-top: 6px; } #map-info .btn { padding: 10px 18px; font-size: 13px; }
+  #map-cards { grid-template-columns: repeat(5, minmax(80px, 1fr)); gap: 6px; }
+  .map-card .nm { font-size: 12px; letter-spacing: 1px; } .map-card .info { padding: 3px 6px 5px; } .map-card .pv .num { font-size: 14px; }
+}
+#mapselect .screen-title, #map-info, #map-cards { position: relative; z-index: 1; }   /* above the preview pane's dimming shadow */
+@media (max-height: 520px) {
+  #mapselect .screen-title { display: none; }
+  #mapselect { justify-content: center; }
+  .ms-main { height: 60vh; }
+  #mi-num { font-size: 10px; } #mi-name { font-size: 22px; letter-spacing: 3px; }
+  .tag { font-size: 9px; padding: 2px 6px; } #mi-tags { margin-bottom: 4px; }
+  .mi-help { font-size: 10px; margin-bottom: 2px; }
+}

@@ -6,8 +6,8 @@
    The radio tower and the market kiosk are added to EVERY map here.
    ========================================================================= */
 import * as THREE from '../lib/three.module.js';
-import { CONFIG } from './config.js?v=0c35b74f43';
-import { surface, surfaceRepeat, boxProjectUVs } from './textures.js?v=0c35b74f43';
+import { CONFIG } from './config.js?v=e898eff5dd';
+import { surface, surfaceRepeat, boxProjectUVs } from './textures.js?v=e898eff5dd';
 
 // Make a texture by drawing on a 2D canvas (no image files needed).
 export function canvasTexture(w, h, draw, repeatX = 1, repeatY = repeatX) {

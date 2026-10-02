@@ -1,12 +1,13 @@
 /* Map: SPACE SHIP — a huge hangar bay inside a starship.
    Metal floor, bulkhead walls making corridors, blue/white light strips,
    and big windows in the walls showing the starfield outside. */
-import { canvasTexture } from '../world.js?v=0c35b74f43';
+import { canvasTexture } from '../world.js?v=e898eff5dd';
 
 export const MAP = {
   id: 'spaceship',
   name: 'Space Ship',
   desc: 'Hangar bay of the UNS Meridian. Bulkheads, cargo and a view of the void.',
+  mood: 'Sci-fi · Tight corridors', difficulty: 'Medium',   // shown on the map select screen
   card: ['#0b1730', '#4fc3ff'],          // colours used for the menu card fallback
   halfX: 38, halfZ: 38, wallHeight: 13,
   playerSpawn: [0, 0, 10],

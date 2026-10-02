@@ -19,22 +19,23 @@ import { UnrealBloomPass } from '../lib/addons/postprocessing/UnrealBloomPass.js
 import { OutputPass } from '../lib/addons/postprocessing/OutputPass.js';
 import { GTAOPass } from '../lib/addons/postprocessing/GTAOPass.js';
 import { RoomEnvironment } from '../lib/addons/environments/RoomEnvironment.js';
-import { CONFIG, buildWave } from './config.js?v=0c35b74f43';
-import { Sound } from './audio.js?v=0c35b74f43';
-import { World } from './world.js?v=0c35b74f43';
-import { MAPS } from './maps/index.js?v=0c35b74f43';
-import { Effects } from './effects.js?v=0c35b74f43';
-import { EnemyManager } from './enemies.js?v=0c35b74f43';
-import { Player } from './player.js?v=0c35b74f43';
-import { WeaponSystem } from './weapons.js?v=0c35b74f43';
-import { Turrets } from './turrets.js?v=0c35b74f43';
-import { HUD } from './hud.js?v=0c35b74f43';
-import { Market } from './market.js?v=0c35b74f43';
-import { setViewmodelDetail } from './viewmodels.js?v=0c35b74f43';
+import { CONFIG, buildWave } from './config.js?v=e898eff5dd';
+import { Sound } from './audio.js?v=e898eff5dd';
+import { World } from './world.js?v=e898eff5dd';
+import { MAPS } from './maps/index.js?v=e898eff5dd';
+import { Effects } from './effects.js?v=e898eff5dd';
+import { EnemyManager } from './enemies.js?v=e898eff5dd';
+import { Player } from './player.js?v=e898eff5dd';
+import { WeaponSystem } from './weapons.js?v=e898eff5dd';
+import { Turrets } from './turrets.js?v=e898eff5dd';
+import { HUD } from './hud.js?v=e898eff5dd';
+import { Market } from './market.js?v=e898eff5dd';
+import { setViewmodelDetail } from './viewmodels.js?v=e898eff5dd';
+import { TouchControls, isTouchDevice } from './touch.js?v=e898eff5dd';
 
 const $ = (id) => document.getElementById(id);
 const DEFAULT_SETTINGS = {
-  sens: 1, adsMult: 1, invertY: false, fov: 75,
+  sens: 1, adsMult: 1, invertY: false, fov: 75, touchSens: 1.4,
   master: 0.8, sfx: 1,
   quality: 'high', res: 1, shadows: true, bloom: true, ao: true, detail: true, reflections: true, fps: false,
   chColor: '#5cfff0', chSize: 7,
@@ -67,7 +68,11 @@ class Game {
     this.sound = Sound;
     let saved = {};
     try { saved = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}') || {}; } catch (e) { saved = {}; }
+    // Phones / tablets: touch controls, no pointer lock, LOW graphics by default.
+    this.touchMode = isTouchDevice();
+    document.body.classList.toggle('touch', this.touchMode);
     this.settings = Object.assign({}, DEFAULT_SETTINGS, saved);
+    if (this.touchMode && saved.quality === undefined) this.settings.quality = 'low';
     if (saved.ao === undefined && QUALITY[this.settings.quality]) Object.assign(this.settings, QUALITY[this.settings.quality]);
 
     // ---------- renderer & cameras ----------
@@ -152,9 +157,18 @@ class Game {
     this.keys = {};
     this.selectedMap = 0;
     this.previews = {};
+    this.mapCache = new Map();
+    this.previewIndex = -1;
 
     this.setupInput();
     this.setupUI();
+    this.touch = new TouchControls(this);
+    // A finger on a device we didn't detect as touch (e.g. touchscreen laptop) switches touch mode on.
+    window.addEventListener('touchstart', () => {
+      if (this.touchMode) return;
+      this.touchMode = true; document.body.classList.add('touch');
+      if (document.pointerLockElement) { this.suppressUnlock = true; document.exitPointerLock(); }
+    }, { passive: true });
     this.applySettings();
     window.addEventListener('resize', () => this.resize());
     this.resize();
@@ -168,20 +182,36 @@ class Game {
 
   // ================================================================== maps
   /** Build a map from js/maps/. Throws away the previous one. */
-  loadMap(index) {
+  loadMap(index, cache = false) {
     if (this.world) {
       this.enemies.clear();
       this.weapons.clearProjectiles();
-      this.world.dispose();
+      if (!this.world._cached) this.world.dispose();   // cached preview maps are kept for the map select screen
     }
     this.mapIndex = index;
     const map = MAPS[index];
-    this.scene = new THREE.Scene();
-    this.world = new World(this.scene, map);
-    this.effects = new Effects(this.scene);
-    this.enemies = new EnemyManager(this.scene, this);
-    this.muzzleLight = new THREE.PointLight(0xffc070, 0, 14, 2);
-    this.scene.add(this.muzzleLight);
+    const hit = cache && this.mapCache.get(index);
+    if (hit) {
+      ({ scene: this.scene, world: this.world, effects: this.effects, enemies: this.enemies, muzzleLight: this.muzzleLight } = hit);
+      this.mapCache.delete(index); this.mapCache.set(index, hit);   // most recently used last
+    } else {
+      this.scene = new THREE.Scene();
+      this.world = new World(this.scene, map);
+      this.effects = new Effects(this.scene);
+      this.enemies = new EnemyManager(this.scene, this);
+      this.muzzleLight = new THREE.PointLight(0xffc070, 0, 14, 2);
+      this.scene.add(this.muzzleLight);
+      if (cache) {
+        this.world._cached = true;
+        this.mapCache.set(index, { scene: this.scene, world: this.world, effects: this.effects, enemies: this.enemies, muzzleLight: this.muzzleLight });
+        const max = this.touchMode ? 2 : 4;   // keep memory in check on phones
+        for (const [k, b] of this.mapCache) {
+          if (this.mapCache.size <= max) break;
+          if (b.world === this.world) continue;
+          b.world.dispose(); this.mapCache.delete(k);
+        }
+      }
+    }
     this.scenePass.scene = this.scene;
     this.aoPass.scene = this.scene;
     this.scene.environment = this.envMap;
@@ -196,9 +226,16 @@ class Game {
     this.turrets.rebuild();
   }
 
+  /** Free every cached preview map except the one on screen (called when a run starts). */
+  clearMapCache() {
+    for (const b of this.mapCache.values()) { if (b.world === this.world) b.world._cached = false; else b.world.dispose(); }
+    this.mapCache.clear();
+  }
+
   // ================================================================== state / screens
   setState(s) {
     this.state = s;
+    if (s !== 'mapselect' && this.camera.view && this.camera.view.enabled) { this.camera.clearViewOffset(); }
     for (const id of ['title', 'mapselect', 'pause', 'gameover']) $(id).classList.toggle('hidden', id !== s && !(id === 'pause' && s === 'paused'));
     this.hud.show(s === 'playing' || s === 'paused');
     if (s !== 'playing') this.hud.hint('');
@@ -221,12 +258,20 @@ class Game {
     MAPS.forEach((m, i) => {
       const c = document.createElement('div');
       c.className = 'map-card';
-      c.innerHTML = `<div class="pv" style="background-image:linear-gradient(135deg, ${m.card[0]}, ${m.card[1]})"><span class="num">${i + 1}</span></div>
-        <div class="info"><div class="nm">${m.name}</div><div class="ds">${m.desc}</div></div>`;
-      c.onclick = () => this.selectMap(i);
-      c.ondblclick = () => this.startRun(i);
+      c.innerHTML = `<div class="pv" style="background-image:url(img/maps/${m.id}.jpg), linear-gradient(135deg, ${m.card[0]}, ${m.card[1]})"><span class="num">${i + 1}</span></div>
+        <div class="info"><div class="nm">${m.name}</div><div class="ds">${m.difficulty}</div></div>`;
+      // Mouse: hovering previews the map, click selects, double click deploys.
+      c.addEventListener('pointerenter', (e) => { if (e.pointerType === 'mouse') this.previewMap(i); });
+      // Touch: first tap previews + selects, a second tap on the same map deploys.
+      c.onclick = () => {
+        if (this.touchMode && this.selectedMap === i && this.lastTapMap === i) { this.startRun(i); return; }
+        this.lastTapMap = i;
+        this.selectMap(i);
+      };
+      c.ondblclick = () => { if (!this.touchMode) this.startRun(i); };
       wrap.appendChild(c);
     });
+    wrap.addEventListener('pointerleave', (e) => { if (e.pointerType === 'mouse' && this.state === 'mapselect') this.previewMap(this.selectedMap); });
     this.showBest();
   }
 
@@ -239,7 +284,7 @@ class Game {
     $('btn-settings-reset').onclick = () => { Object.assign(s, DEFAULT_SETTINGS); this.applySettings(); Sound.ui(); };
     const range = (id, key, custom) => { $(id).oninput = (e) => { s[key] = parseFloat(e.target.value); if (custom) s.quality = 'custom'; this.applySettings(); }; };
     const check = (id, key, custom) => { $(id).onchange = (e) => { s[key] = e.target.checked; if (custom) s.quality = 'custom'; this.applySettings(); }; };
-    range('opt-sens', 'sens'); range('opt-ads', 'adsMult'); range('opt-fov', 'fov');
+    range('opt-sens', 'sens'); range('opt-touchsens', 'touchSens'); range('opt-ads', 'adsMult'); range('opt-fov', 'fov');
     range('opt-master', 'master'); range('opt-sfx', 'sfx');
     range('opt-res', 'res', true); range('opt-chsize', 'chSize');
     check('opt-invert', 'invertY'); check('opt-shadows', 'shadows', true); check('opt-bloom', 'bloom', true); check('opt-ao', 'ao', true); check('opt-detail', 'detail', true); check('opt-refl', 'reflections', true); check('opt-fps', 'fps');
@@ -277,7 +322,7 @@ class Game {
     try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(s)); } catch (e) { /* private mode */ }
     // reflect values in the controls
     const val = (id, v, txt) => { $('opt-' + id).value = v; if ($('val-' + id)) $('val-' + id).textContent = txt; };
-    val('sens', s.sens, s.sens.toFixed(2)); val('ads', s.adsMult, s.adsMult.toFixed(2) + '×');
+    val('sens', s.sens, s.sens.toFixed(2)); val('touchsens', s.touchSens, s.touchSens.toFixed(2)); val('ads', s.adsMult, s.adsMult.toFixed(2) + '×');
     val('fov', s.fov, s.fov + '°');
     val('master', s.master, Math.round(s.master * 100) + '%'); val('sfx', s.sfx, Math.round(s.sfx * 100) + '%');
     val('res', s.res, Math.round(s.res * 100) + '%'); val('chsize', s.chSize, s.chSize + 'px');
@@ -306,38 +351,79 @@ class Game {
     $('best-score').textContent = b ? `HIGH SCORE ${b.score.toLocaleString()} — ${b.areas} areas cleared, ${b.waves} waves` : '';
   }
 
-  async openMapSelect() {
+  openMapSelect() {
     this.setState('mapselect');
-    this.selectMap(this.selectedMap);
-    // Make preview pictures of every map once (render each map and grab the image).
-    if (Object.keys(this.previews).length < MAPS.length && !this.makingPreviews) {
-      this.makingPreviews = true;
-      for (let i = 0; i < MAPS.length; i++) {
-        if (this.state !== 'mapselect') break;
-        this.loadMap(i);
-        this.orbitCamera(0.8);
-        await new Promise((r) => requestAnimationFrame(r));
-        this.render();
-        this.previews[i] = this.canvas.toDataURL('image/jpeg', 0.8);
-        $('map-cards').children[i].querySelector('.pv').style.backgroundImage = `url(${this.previews[i]})`;
-      }
-      this.makingPreviews = false;
-      this.loadMap(this.selectedMap);
-    }
+    this.previewIndex = -1;
+    this.lastTapMap = -1;
+    this.previewFps = { t: 0, n: 0 };
+    this.selectMap(this.selectedMap, true);
   }
 
-  selectMap(i) {
+  selectMap(i, quiet = false) {
     this.selectedMap = i;
     [...$('map-cards').children].forEach((c, k) => c.classList.toggle('selected', k === i));
-    if (!this.makingPreviews && this.mapIndex !== i) this.loadMap(i);
-    Sound.ui();
+    this.previewMap(i);
+    if (!quiet) Sound.ui();
+  }
+
+  /** Live 3D preview is used unless the LOW preset is on or the device is too slow (then: pre-rendered image). */
+  previewUsesImage() {
+    const q = new URLSearchParams(location.search).get('preview');
+    if (q === 'live') return false;
+    if (q === 'image') return true;
+    return this.settings.quality === 'low' || this.slowPreview;
+  }
+
+  /** Show map i in the big preview pane (crossfade). Built maps are cached so hovering back and forth is instant. */
+  previewMap(i) {
+    if (this.previewIndex === i) return;
+    const first = this.previewIndex < 0;
+    this.previewIndex = i;
+    const m = MAPS[i];
+    [...$('map-cards').children].forEach((c, k) => c.classList.toggle('hovered', k === i));
+    $('mi-num').textContent = `AREA ${i + 1} / ${MAPS.length}`;
+    $('mi-name').textContent = m.name;
+    $('mi-desc').textContent = m.desc;
+    $('mi-tags').innerHTML = `<span class="tag mood">${m.mood}</span><span class="tag diff ${m.difficulty.toLowerCase()}">${m.difficulty}</span>`;
+    const pane = $('map-preview');
+    const imageMode = this.previewUsesImage();
+    pane.classList.toggle('image-mode', imageMode);
+    // image layers (always kept up to date so the fallback can kick in at any time)
+    const a = $('mp-img-a'), b = $('mp-img-b');
+    const [front, back] = a.classList.contains('on') ? [a, b] : [b, a];
+    back.style.backgroundImage = `url(img/maps/${m.id}.jpg)`;
+    back.classList.add('on'); front.classList.remove('on');
+    if (imageMode) return;
+    clearTimeout(this.previewTimer);
+    // short debounce so sweeping the mouse over the cards doesn't build every map on the way
+    const swap = () => {
+      if (this.state !== 'mapselect' || this.previewIndex !== i || this.mapIndex === i) return;
+      const fc = $('map-fade');
+      if (!first) {
+        fc.width = Math.max(1, Math.round(innerWidth / 2)); fc.height = Math.max(1, Math.round(innerHeight / 2));
+        this.render();                                        // draw the old map, then copy it to the fade layer
+        fc.getContext('2d').drawImage(this.canvas, 0, 0, fc.width, fc.height);
+        fc.style.transition = 'none'; fc.style.opacity = 1;
+      }
+      this.loadMap(i, true);
+      requestAnimationFrame(() => requestAnimationFrame(() => { fc.style.transition = 'opacity .45s ease'; fc.style.opacity = 0; }));
+    };
+    if (first || this.mapCache.has(i)) swap(); else this.previewTimer = setTimeout(swap, 110);
+  }
+
+  /** Map select: aim the camera so the map sits in the middle of the preview pane. */
+  framePreviewPane() {
+    const r = $('map-preview').getBoundingClientRect();
+    if (!r.width) return;
+    const W = innerWidth, H = innerHeight;
+    this.camera.setViewOffset(W, H, W / 2 - (r.left + r.width / 2), H / 2 - (r.top + r.height / 2), W, H);
   }
 
   // Slowly circling camera for the title / map select background.
   orbitCamera(t) {
-    const r = Math.min(this.world.halfX, this.world.halfZ) * 0.85 + 6;
+    const r = (Math.min(this.world.halfX, this.world.halfZ) * 0.85 + 6) * (1 + 0.12 * Math.sin(t * 0.13));
     const a = t * 0.1 + 0.8;
-    this.camera.position.set(Math.cos(a) * r, 9, Math.sin(a) * r);
+    this.camera.position.set(Math.cos(a) * r, 9 + 2.5 * Math.sin(t * 0.09), Math.sin(a) * r);
     this.camera.fov = this.settings.fov; this.camera.updateProjectionMatrix();
     this.camera.lookAt(0, 5, 0);
   }
@@ -351,7 +437,10 @@ class Game {
     this.credits = CONFIG.START_CREDITS; this.score = 0; this.kills = 0;
     this.stats = { shots: 0, hits: 0 };
     this.turrets.count = 0;
+    clearTimeout(this.previewTimer);
+    if (this.camera.view && this.camera.view.enabled) this.camera.clearViewOffset();
     this.loadMap(mapIndex);
+    this.clearMapCache();
     this.weapons.reset();
     this.towerHp = CONFIG.TOWER.maxHp;
     this.player.reset(this.world.playerSpawn);
@@ -629,7 +718,7 @@ class Game {
 
   // ================================================================== pause / pointer lock
   lockPointer() {
-    if (this.testMode) return;
+    if (this.testMode || this.touchMode) return;   // touch devices look with the finger instead
     try {
       const p = this.canvas.requestPointerLock();
       if (p && p.catch) p.catch(() => this.hud.hint('Click to capture the mouse'));
@@ -673,7 +762,7 @@ class Game {
     this.canvas.addEventListener('mousedown', (e) => {
       Sound.init();
       if (this.state !== 'playing' || this.market.open) return;
-      if (!document.pointerLockElement && !this.testMode) { this.lockPointer(); return; }
+      if (!document.pointerLockElement && !this.testMode && !this.touchMode) { this.lockPointer(); return; }
       if (e.button === 0) { this.input.mouseL = true; this.input.mouseLPressed = true; }
       if (e.button === 2) this.input.mouseR = true;
     });
@@ -711,6 +800,8 @@ class Game {
       case 'mapselect':
         if (code === 'Enter') this.startRun(this.selectedMap);
         if (code.startsWith('Digit')) { const n = +code.slice(5) - 1; if (MAPS[n]) this.selectMap(n); }
+        if (code === 'ArrowRight' || code === 'ArrowDown') this.selectMap((this.selectedMap + 1) % MAPS.length);
+        if (code === 'ArrowLeft' || code === 'ArrowUp') this.selectMap((this.selectedMap + MAPS.length - 1) % MAPS.length);
         if (code === 'Escape') this.setState('title');
         break;
       case 'paused': if (code === 'Escape' || code === 'KeyP') this.resume(); break;
@@ -741,10 +832,20 @@ class Game {
     this.last = now;
     this.time = (this.time || 0) + dt;
 
+    if (this.touch) this.touch.update();
     if (this.state === 'playing') this.update(dt);
     else if (this.state === 'cutscene') this.updateCutscene(dt);
     else if (this.state === 'title' || this.state === 'mapselect') {
       if (!this.makingPreviews) this.orbitCamera(this.time);
+      if (this.state === 'mapselect') {
+        this.framePreviewPane();
+        // too slow for a live preview? switch to the pre-rendered pictures
+        const f = this.previewFps;
+        if (f && !this.slowPreview) {
+          f.t += (now - (f.last || now)) / 1000; f.last = now; f.n++;
+          if (f.t > 2) { if (f.n / f.t < 20) { this.slowPreview = true; $('map-preview').classList.toggle('image-mode', this.previewUsesImage()); } this.previewFps = null; }
+        }
+      }
       this.world.update(dt, 1);
     }
     this.input.mouseLPressed = false; this.input.mouseLReleased = false;
@@ -805,6 +906,11 @@ class Game {
 
     // Hints
     if (marketOpen) this.hud.hint('');
+    else if (this.touchMode) {
+      if (this.phase === 'intermission') this.hud.hint(`Tap <b>MARKET</b> to shop or start wave ${this.wave + 1}`);
+      else if (this.nearKiosk()) this.hud.hint('Tap <b>MARKET</b> to use the terminal');
+      else this.hud.hint('');
+    }
     else if (!document.pointerLockElement && !this.testMode) this.hud.hint('<b>CLICK</b> to capture the mouse');
     else if (this.phase === 'intermission') this.hud.hint(`<b>[B]</b> Market &nbsp;·&nbsp; <b>[ENTER]</b> Start wave ${this.wave + 1}`);
     else if (this.nearKiosk()) this.hud.hint('<b>[B]</b> Use market terminal');

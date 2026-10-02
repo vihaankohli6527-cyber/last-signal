@@ -74,6 +74,7 @@ canvas.addEventListener('mousedown', (e) => {
 });
 window.addEventListener('mouseup', () => { input.mouseDown = false; });
 canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+initTouch(); // phone / tablet controls (touch.js)
 
 // ---------------------------------------------------------------------------
 // Game state. Everything that changes during play lives in this one object,
@@ -172,6 +173,7 @@ function startNextWave() {
 
 // Called when every alien of the wave has been spawned and killed.
 function waveCleared() {
+  resetTouchSticks();
   game.wavesCompleted = game.wave;
   const bonus = 20 + game.wave * 10;
   game.points += bonus;
@@ -189,7 +191,10 @@ function waveCleared() {
   }
 }
 
+function pauseGame() { if (game.state === 'playing') { game.state = 'paused'; resetTouchSticks(); } }
+
 function gameOver(reason) {
+  resetTouchSticks();
   game.state = 'gameover';
   game.gameOverReason = reason;
   Sound.gameOver();
@@ -258,7 +263,7 @@ function onKeyPress(code) {
       if (code === 'KeyM') Sound.muted = !Sound.muted;
       break;
     case 'playing':
-      if (code === 'KeyP' || code === 'Escape') game.state = 'paused';
+      if (code === 'KeyP' || code === 'Escape') pauseGame();
       if (code === 'KeyM') Sound.muted = !Sound.muted;
       break;
     case 'paused':
@@ -309,10 +314,13 @@ function update(dt) {
   if (input.keys.KeyS || input.keys.ArrowDown) my += 1;
   if (input.keys.KeyA || input.keys.ArrowLeft) mx -= 1;
   if (input.keys.KeyD || input.keys.ArrowRight) mx += 1;
+  let speedK = 1;
+  const tm = touch.moveVec;            // left thumb stick (analog)
+  if (tm.mag > 0.1 && !mx && !my) { mx = tm.x; my = tm.y; speedK = Math.min(1, tm.mag * 1.15); }
   if (mx || my) {
     const len = Math.hypot(mx, my); // normalise so diagonals aren't faster
-    p.x += (mx / len) * p.speed * dt;
-    p.y += (my / len) * p.speed * dt;
+    p.x += (mx / len) * p.speed * speedK * dt;
+    p.y += (my / len) * p.speed * speedK * dt;
   }
   p.x = clamp(p.x, p.r, W - p.r);
   p.y = clamp(p.y, p.r, H - p.r);
@@ -325,11 +333,16 @@ function update(dt) {
   }
 
   // --- Aiming and shooting ---
-  p.angle = Math.atan2(input.mouseY - p.y, input.mouseX - p.x);
+  // Touch: the right stick aims and fires; otherwise the mouse aims.
+  const ta = touch.aimVec;
+  let touchFire = false;
+  if (ta.mag > 0.2) { p.angle = Math.atan2(ta.y, ta.x); touchFire = ta.mag > 0.35; }
+  else if (touch.enabled && tm.mag > 0.2) p.angle = Math.atan2(tm.y, tm.x);   // face where you walk
+  else if (!touch.enabled) p.angle = Math.atan2(input.mouseY - p.y, input.mouseX - p.x);
   p.cooldown -= dt;
   if (p.flash > 0) p.flash -= dt;
   if (p.hurtTimer > 0) p.hurtTimer -= dt;
-  if (input.mouseDown && p.cooldown <= 0) {
+  if ((input.mouseDown || touchFire) && p.cooldown <= 0) {
     p.cooldown = p.fireDelay;
     p.flash = 0.05;
     const spread = rand(-0.04, 0.04);
@@ -474,6 +487,7 @@ function draw() {
   ctx.restore();
 
   drawHUD();
+  drawTouchControls();
   if (game.state === 'upgrade') drawUpgradeScreen();
   if (game.state === 'paused') drawPause();
   if (game.state === 'gameover') drawGameOver();
@@ -567,8 +581,11 @@ function drawHUD() {
     ctx.globalAlpha = 1;
   }
 
+  // Touch: pause button (top, next to the health bars)
+  if (touch.enabled && game.state === 'playing') drawButton(300, 18, 64, 52, ' ❚❚', pauseGame);
+
   // Bottom hint
-  if (game.state === 'playing') {
+  if (game.state === 'playing' && !touch.enabled) {
     ctx.textAlign = 'left';
     ctx.font = '12px monospace';
     ctx.fillStyle = 'rgba(200,220,240,0.4)';
@@ -586,14 +603,15 @@ function drawButton(x, y, w, h, label, action, enabled = true, sub = '') {
   ctx.strokeRect(x, y, w, h);
   ctx.textAlign = 'left';
   ctx.fillStyle = enabled ? '#e8f7ff' : '#6a7480';
-  ctx.font = 'bold 16px monospace';
-  ctx.fillText(label, x + 14, y + (sub ? 24 : h / 2 + 6));
+  const big = h >= 64; // touch-sized buttons get bigger text
+  ctx.font = big ? 'bold 20px monospace' : 'bold 16px monospace';
+  ctx.fillText(label, x + 14, y + (sub ? (big ? 34 : 24) : h / 2 + (big ? 7 : 6)));
   if (sub) {
-    ctx.font = '12px monospace';
+    ctx.font = big ? '15px monospace' : '12px monospace';
     ctx.fillStyle = enabled ? '#9fdcff' : '#555d66';
-    ctx.fillText(sub, x + 14, y + 44);
+    ctx.fillText(sub, x + 14, y + (big ? 62 : 44));
   }
-  game.buttons.push({ x, y, w, h, action });
+  game.buttons.push({ x, y, w, h, action, label });
 }
 
 function dimBackground(alpha = 0.7) {
@@ -752,6 +770,8 @@ function drawTitle() {
   drawPanel(x0, cy, pw * 3 + gap * 2, ch, 'CONTROLS', '#ff9a5a');
   const ky = cy + 78;
   ctx.textAlign = 'left';
+  if (touch.enabled) { drawTouchHelp(x0, cy, pw * 3 + gap * 2, ky); }
+  else {
   // Move: WASD + arrows
   let kx = x0 + 22;
   drawKey(kx + 36, ky - 34, 'W'); drawKey(kx, ky, 'A'); drawKey(kx + 36, ky, 'S'); drawKey(kx + 72, ky, 'D');
@@ -777,22 +797,42 @@ function drawTitle() {
   kx += 110;
   drawKey(kx, ky, '1-5', 40); drawKey(kx + 44, ky, 'Enter', 54);
   label(kx + 106, 'SHOP', 'buy / next wave');
+  }
 
   // --- Start button + shake setting ---
   const blink = Math.sin(game.time * 4) > 0;
-  drawButton(W / 2 - 140, H - 70, 280, 50, blink ? '▶   START GAME' : '    START GAME', () => { resetGame(); startNextWave(); });
+  const big = touch.enabled ? 14 : 0;
+  drawButton(W / 2 - 140 - big, H - 70 - big, 280 + big * 2, 50 + big, blink ? '▶   START GAME' : '    START GAME', () => { resetGame(); startNextWave(); });
   drawButton(x0 + pw * 3 + gap * 2 - 250, H - 62, 250, 36, `Screen shake: ${settings.shake.toUpperCase()}`, cycleShake);
   ctx.textAlign = 'left';
   ctx.font = '12px monospace';
   ctx.fillStyle = 'rgba(200,220,240,0.55)';
-  ctx.fillText('Press Enter / Space to start', x0, H - 38);
+  ctx.fillText(touch.enabled ? 'Tap START to play' : 'Press Enter / Space to start', x0, H - 38);
   ctx.fillText(Sound.muted ? 'Sound: OFF (M)' : 'Sound: ON (M)', x0, H - 20);
+}
+
+// Home screen controls strip on phones / tablets.
+function drawTouchHelp(x0, cy, w, ky) {
+  const stick = (cx, cy2, color) => {
+    ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.fillStyle = 'rgba(10,20,30,0.6)';
+    ctx.beginPath(); ctx.arc(cx, cy2, 24, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = color; ctx.beginPath(); ctx.arc(cx + 8, cy2 - 6, 11, 0, Math.PI * 2); ctx.fill();
+  };
+  const label = (lx, t1, t2) => {
+    ctx.textAlign = 'left'; ctx.font = 'bold 15px monospace'; ctx.fillStyle = '#e8f7ff'; ctx.fillText(t1, lx, ky + 4);
+    ctx.font = '13px monospace'; ctx.fillStyle = '#8fb4c8'; ctx.fillText(t2, lx, ky + 22);
+  };
+  stick(x0 + 50, ky + 4, '#4fc3ff'); label(x0 + 86, 'LEFT THUMB: MOVE', 'touch anywhere on the left half and drag');
+  stick(x0 + 500, ky + 4, '#ff7a5a'); label(x0 + 536, 'RIGHT THUMB: AIM + FIRE', 'drag on the right half, it fires automatically');
+  drawKey(x0 + 960, ky - 12, '❚❚', 40); label(x0 + 1010, 'PAUSE', 'button at the top');
 }
 
 function drawPause() {
   drawCenterMessage('PAUSED', 'Press P or Esc to continue   •   M to mute');
-  drawButton(W / 2 - 125, H / 2 + 20, 250, 44, `Screen shake: ${settings.shake.toUpperCase()}`, cycleShake);
-  drawButton(W / 2 - 125, H / 2 + 74, 250, 44, '▶  RESUME', () => { game.state = 'playing'; });
+  const bh = touch.enabled ? 64 : 44;
+  drawButton(W / 2 - 160, H / 2 + 20, 320, bh, `Screen shake: ${settings.shake.toUpperCase()}`, cycleShake);
+  drawButton(W / 2 - 160, H / 2 + 30 + bh, 320, bh, '▶  RESUME', () => { game.state = 'playing'; });
+  if (touch.enabled) drawButton(W / 2 - 160, H / 2 + 40 + bh * 2, 320, bh, 'MUTE / UNMUTE', () => { Sound.muted = !Sound.muted; });
 }
 
 function drawUpgradeScreen() {
@@ -805,6 +845,7 @@ function drawUpgradeScreen() {
   ctx.fillStyle = '#fff27a';
   ctx.fillText(`Wave bonus +${game.lastBonus}   •   Points to spend: ${game.points}`, W / 2, 185);
 
+  if (touch.enabled) { drawUpgradeScreenTouch(); return; }
   const bw = 420, bh = 58, gap = 10;
   const x = W / 2 - bw / 2;
   let y = 215;
@@ -829,6 +870,26 @@ function drawUpgradeScreen() {
   ctx.fillText('Keys 1-5 to buy, Enter to continue', W / 2, y + 90);
 }
 
+// Touch version of the shop: two columns of big buttons.
+function drawUpgradeScreenTouch() {
+  const bw = 560, bh = 86, gap = 16, x0 = W / 2 - bw - gap / 2;
+  CONFIG.UPGRADES.forEach((u, i) => {
+    const col = i % 2, row = Math.floor(i / 2);
+    const x = x0 + col * (bw + gap), y = 205 + row * (bh + gap);
+    const blocked = upgradeBlocked(u);
+    let sub = u.desc;
+    if (u.id === 'turret') sub += ` (${game.turrets.length}/${CONFIG.TURRET.max})`;
+    if (blocked && blocked !== 'Not enough points') sub += ` — ${blocked}`;
+    drawButton(x, y, bw, bh, u.name, () => buyUpgrade(i), !blocked, sub);
+    ctx.textAlign = 'right';
+    ctx.font = 'bold 18px monospace';
+    ctx.fillStyle = blocked ? '#6a5a30' : '#fff27a';
+    ctx.fillText(`${upgradeCost(u)} pts`, x + bw - 16, y + 26);
+  });
+  // the 5th item sits alone in row 3 (left); the start button fills the right
+  drawButton(x0 + bw + gap, 205 + 2 * (bh + gap), bw, bh, `START WAVE ${game.wave + 1}  ▶`, startNextWave);
+}
+
 // extra: optional function that draws something behind the text (after dimming).
 function drawCenterMessage(title, sub, color = '#e8f7ff', extra = null) {
   dimBackground(0.6);
@@ -848,13 +909,13 @@ function drawCenterMessage(title, sub, color = '#e8f7ff', extra = null) {
 function drawGameOver() {
   drawCenterMessage('SIGNAL LOST', game.gameOverReason || '', '#ff5a5a');
   ctx.fillText(`Reached wave ${game.wave}   •   Kills ${game.kills}   •   Score ${game.score}`, W / 2, H / 2 + 20);
-  drawButton(W / 2 - 120, H / 2 + 55, 240, 50, '↻  RESTART', () => { resetGame(); startNextWave(); });
+  drawButton(W / 2 - 150, H / 2 + 55, 300, touch.enabled ? 72 : 50, '↻  RESTART', () => { resetGame(); startNextWave(); });
 }
 
 function drawWin() {
   drawCenterMessage('RESCUE HAS ARRIVED', `You held the tower for all ${CONFIG.TOTAL_WAVES} waves!`, '#7dff5a', drawRescueShip);
   ctx.fillText(`Kills ${game.kills}   •   Final score ${game.score}`, W / 2, H / 2 + 20);
-  drawButton(W / 2 - 120, H / 2 + 55, 240, 50, '↻  PLAY AGAIN', () => { resetGame(); startNextWave(); });
+  drawButton(W / 2 - 150, H / 2 + 55, 300, touch.enabled ? 72 : 50, '↻  PLAY AGAIN', () => { resetGame(); startNextWave(); });
 }
 
 // A simple rescue ship hovering over the tower with a searchlight.

@@ -30,6 +30,8 @@ You're stranded on an alien world. The radio tower in the centre is your only wa
 | Mute | M |
 | Shop | 1–5 buy, Enter next wave |
 
+**Phone / iPad (touch):** twin-stick. Drag on the left half to move (floating joystick) and on the right half to aim; it fires automatically while you hold it. The ❚❚ button pauses. The shop, home screen and menus all work by tapping large buttons. Touch mode turns on by itself on touch devices. On a phone held upright, the game suggests rotating to landscape (you can tap "Play anyway").
+
 Screen shake (Off / Low / Normal) can be changed on the home and pause screens.
 
 ## 3D version
@@ -48,6 +50,22 @@ Five maps, an endless campaign, a market with 7 weapons, PBR graphics, and setti
 | Weapons | 1–7, mouse wheel, Q |
 | Market | B |
 | Pause | Esc |
+
+**Phone / iPad (touch):**
+
+| Action | Touch |
+|---|---|
+| Move / sprint | Left joystick (push all the way forward to sprint) |
+| Look | Drag on the right half of the screen (Settings → Touch look sensitivity) |
+| Fire | Hold FIRE (drag from it to aim while firing) |
+| Aim / scope | AIM (toggle) |
+| Jump · crouch / slide | JUMP · SLIDE (sprint + SLIDE = slide) |
+| Reload · switch weapon | ↻ · ⇄, or tap a weapon slot |
+| Market · pause · fullscreen | 🛒 · ❚❚ · ⛶ |
+
+Pointer lock is skipped on touch devices, and graphics default to Low on them. iOS Safari has no Fullscreen API, so use Share → **Add to Home Screen** to play full screen there.
+
+**Map select:** hover over a map (or tap it once, or use ←/→) to see a live 3D fly-around of the real map, with its mood and difficulty. Click to select. Double-click, tap a second time, or press DEPLOY to start. The Low preset and slow devices show pre-rendered pictures instead.
 
 More details are in [`3d/README.md`](3d/README.md).
 
