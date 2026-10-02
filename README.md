@@ -1,0 +1,41 @@
+# Last Signal 3D
+
+Night-time 3D first-person survival shooter. Defend the glowing radio tower in the middle of the arena from waves of neon aliens. It's an **endless campaign**: survive 10 waves, a rescue ship turns up and flies you to the next area (the next map), and the run carries on. The run only ends when you die.
+
+Built with Three.js r186, which is copied into `lib/`. It's fully static: no build step, no CDN, ES modules with relative paths, and it works on GitHub Pages.
+
+## Run
+```
+python3 -m http.server 8000     # in this folder
+# open http://localhost:8000
+```
+(Opening the file directly with `file://` won't work, because browsers block ES modules there. Serve it over HTTP.)
+
+## Controls
+| Key | Action |
+|---|---|
+| Mouse | look (click the game to capture the mouse) |
+| WASD / arrows | move · **Shift** sprint · **Space** jump |
+| Left click | fire (bow: hold to draw, release to shoot) |
+| Right click | aim / zoom (sniper scope, bow draw) |
+| R | reload |
+| 1–7 / mouse wheel / Q | switch owned weapons (1 knife, 2 pistol, 3 rifle, 4 sniper, 5 RPG, 6 grenade launcher, 7 bow) |
+| B | market (between waves, or during a wave when standing at the terminal near the tower) |
+| Enter / N | start the next wave (buy phase) |
+| Esc / P | pause (bloom, shadows, resolution, sensitivity, mute, FPS) |
+| G | toggle bloom · **M** mute |
+
+## Files
+- `index.html`, `css/style.css`: page, HUD and all the menus (title, map select, market, pause, cutscene, game over)
+- `js/config.js`: **all balance numbers**: weapons, items, enemies, waves, area scaling
+- `js/main.js`: game states, input, campaign/waves/areas, market rules, damage, rescue cutscene, rendering and bloom
+- `js/world.js`: shared arena engine: lights from the map palette, collision, helper builders, tower and market kiosk
+- `js/maps/*.js`: one file per map (`build(world, THREE)`, palette, bounds, spawn points). Register a new map in `js/maps/index.js`
+- `js/player.js`: movement, collision, armour and health
+- `js/weapons.js`: firing (melee, hitscan, rockets, grenades, arrows), ammo, reloads, explosions, viewmodel animation
+- `js/viewmodels.js`: first-person weapon models built from primitives
+- `js/enemies.js`: runner, brute, spitter, boss; steering and separation; enemy projectiles
+- `js/turrets.js`, `js/effects.js`, `js/hud.js`, `js/market.js`, `js/audio.js` (WebAudio sounds)
+- `lib/`: vendored `three.module.js`, `three.core.js`, plus the PointerLockControls and EffectComposer/RenderPass/UnrealBloomPass/OutputPass addons
+
+High score and settings are saved in `localStorage`.
