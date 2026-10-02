@@ -7,6 +7,7 @@
    ========================================================================= */
 import * as THREE from '../lib/three.module.js';
 import { CONFIG } from './config.js';
+import { surface, surfaceRepeat, boxProjectUVs } from './textures.js';
 
 // Make a texture by drawing on a 2D canvas (no image files needed).
 export function canvasTexture(w, h, draw, repeatX = 1, repeatY = repeatX) {
@@ -51,6 +52,7 @@ export class World {
     map.build(this, THREE);       // <- the map file builds sky, floor, walls, cover
     this.buildTower();
     this.buildKiosk();
+    this.enhanceMaterials();
   }
 
   // ------------------------------------------------------------------ lights
@@ -71,8 +73,66 @@ export class World {
     Object.assign(sun.shadow.camera, { left: -s, right: s, top: s, bottom: -s, near: 1, far: 200 });
     sun.shadow.bias = -0.0005;
     sun.shadow.normalBias = 0.03;
+    sun.shadow.radius = 3;          // softer shadow edges
     scene.add(sun);
     this.sun = sun;
+  }
+
+  // ------------------------------------------------------------------ PBR detail pass
+  /* Give every plain lit surface physically based detail: an albedo/grime map,
+     a normal map and a roughness map (procedural, see textures.js). Painted
+     textures keep their art and just gain normal + roughness detail. */
+  enhanceMaterials() {
+    const floorType = { spaceship: 'metal', tomb: 'stone', graveyard: 'grass', box: 'concrete', yacht: 'wood' }[this.map.id] || 'concrete';
+    const done = new Set(), doneGeo = new Set(), _s = new THREE.Vector3();
+    this.scene.updateMatrixWorld(true);
+    this.scene.traverse((o) => {
+      if (!o.isMesh || !o.material || Array.isArray(o.material)) return;
+      const m = o.material;
+      if (!m.isMeshStandardMaterial || m.transparent || m.flatShading || m.userData.noDetail) return;
+      const black = m.color.r + m.color.g + m.color.b < 0.02;
+      if (black && m.emissive && m.emissive.getHex() !== 0) return;     // pure glow strip
+      const isFloor = o.geometry.type === 'PlaneGeometry' && o.geometry.parameters.width > 20;
+      const type = m.userData.surface || (isFloor ? floorType : m.metalness >= 0.5 ? 'metal' : m.roughness >= 0.9 ? 'stone' : 'concrete');
+      // Untextured boxes/cylinders get metre-scaled UVs so detail never stretches.
+      if (!m.map && !isFloor && !doneGeo.has(o.geometry) && !o.isInstancedMesh && o.geometry.attributes.normal) {
+        o.getWorldScale(_s);
+        boxProjectUVs(o.geometry, _s, 2.5);
+        doneGeo.add(o.geometry);
+      }
+      if (done.has(m)) return;
+      done.add(m);
+      if (m.map) {
+        const r = m.map.repeat;
+        const t = surfaceRepeat(type, r.x * (isFloor ? 2 : 1), r.y * (isFloor ? 2 : 1));
+        m.normalMap = t.normalMap; m.roughnessMap = t.roughnessMap;
+      } else if (isFloor) {
+        const t = surfaceRepeat(type, this.halfX / 2, this.halfZ / 2);
+        Object.assign(m, { map: t.map, normalMap: t.normalMap, roughnessMap: t.roughnessMap });
+      } else {
+        const t = surface(type);
+        Object.assign(m, { map: t.map, normalMap: t.normalMap, roughnessMap: t.roughnessMap });
+      }
+      m.userData.detail = { normalMap: m.normalMap, roughnessMap: m.roughnessMap };
+      m.normalScale = new THREE.Vector2(0.45, 0.45);
+      m.roughness = Math.min(1, m.roughness * 1.15 + 0.05);
+      m.needsUpdate = true;
+    });
+  }
+
+  /** Turn the normal/roughness detail maps on or off (LOW preset = off, faster). */
+  setDetail(on) {
+    if (this.detailOn === on) return;
+    this.detailOn = on;
+    const seen = new Set();
+    this.scene.traverse((o) => {
+      const m = o.material;
+      if (!m || seen.has(m) || !m.userData || !m.userData.detail) return;
+      seen.add(m);
+      m.normalMap = on ? m.userData.detail.normalMap : null;
+      m.roughnessMap = on ? m.userData.detail.roughnessMap : null;
+      m.needsUpdate = true;
+    });
   }
 
   // ------------------------------------------------------------------ helpers for map files

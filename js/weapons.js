@@ -14,7 +14,11 @@ const INSPECT_TIME = 2.6; // seconds for the Y inspect animation
 export const WEAPON_ORDER = Object.keys(W).sort((a, b) => W[a].slot - W[b].slot);
 
 const _dir = new THREE.Vector3(), _right = new THREE.Vector3(), _up = new THREE.Vector3();
-const _v = new THREE.Vector3(), _v2 = new THREE.Vector3();
+const _v = new THREE.Vector3(), _v2 = new THREE.Vector3(), _n = new THREE.Vector3();
+const WEIGHT = { knife: 0.6, pistol: 0.8, rifle: 1.1, sniper: 1.6, rpg: 1.8, grenade: 1.4, bow: 0.9 };
+// Dust takes a desaturated, lighter version of the surface colour.
+const _dc = new THREE.Color();
+function dustColor(c) { _dc.copy(c).lerp(new THREE.Color(0x8a8478), 0.6); return _dc.getHex(); }
 
 export class WeaponSystem {
   constructor(game, vmCamera) {
@@ -35,6 +39,16 @@ export class WeaponSystem {
     this.flashMesh.add(this.flashMesh2);
     this.flashMesh.visible = false;
     this.flashT = 0;
+
+    // Brass casings (pool) — live in camera space next to the gun.
+    const brass = new THREE.MeshStandardMaterial({ color: 0xc9a04a, metalness: 1, roughness: 0.3 });
+    const shellGeo = new THREE.CylinderGeometry(0.006, 0.006, 0.03, 8);
+    this.shells = [];
+    for (let i = 0; i < 14; i++) {
+      const m = new THREE.Mesh(shellGeo, brass); m.visible = false; m.frustumCulled = false;
+      vmCamera.add(m); this.shells.push({ m, v: new THREE.Vector3(), spin: new THREE.Vector3(), t: 0 });
+    }
+    this.shellNext = 0;
 
     // Shared projectile meshes
     this.projGeo = {
@@ -194,6 +208,7 @@ export class WeaponSystem {
     if (d.mag && a.mag <= 0 && a.reserve > 0 && this.reloadT <= 0 && this.current !== 'bow' && this.cooldown <= 0) this.reload();
 
     this.updateProjectiles(dt);
+    this.updateShells(dt);
     this.animateViewmodel(dt, input);
   }
 
@@ -223,6 +238,7 @@ export class WeaponSystem {
     game.player.punch(d.recoil * 0.25, (Math.random() - 0.5) * d.recoil * 0.3);
     this.kickV = (this.kickV || 0) + (id === 'sniper' || id === 'rpg' ? 9 : 4);
     if (id !== 'bow') { this.flashT = 0.05; game.muzzleFlash(); }
+    if (d.type === 'hitscan') this.ejectShell();
     game.sound[id === 'bow' ? 'bowShot' : id]();
     game.stats.shots++;
 
@@ -287,17 +303,50 @@ export class WeaponSystem {
         if (--pierce <= 0) { end = h.point; break; }
       } else {
         end = h.point;
-        game.effects.impact(h.point, h.face ? h.face.normal : null);
+        const n = h.face ? _n.copy(h.face.normal).transformDirection(h.object.matrixWorld) : _n.set(0, 1, 0);
+        this.surfaceHit(h.point, n, h.object.material);
         break;
       }
     }
     if (!end) {
-      if (floorT < d.range) { end = origin.clone().addScaledVector(dir, floorT); game.effects.impact(end, _up.set(0, 1, 0)); }
+      if (floorT < d.range) { end = origin.clone().addScaledVector(dir, floorT); this.surfaceHit(end, _n.set(0, 1, 0), null); }
       else end = origin.clone().addScaledVector(dir, Math.min(d.range, 120));
     }
     // Tracer starts near the gun, not the eye.
     const start = this.muzzleWorld();
     game.effects.tracer(start, end, id === 'sniper' ? 0x8ff8ff : 0xfff1a0);
+  }
+
+  /** Bullet hits the world: sparks on metal, dust on everything else, plus a bullet hole. */
+  surfaceHit(point, normal, mat) {
+    const fx = this.game.effects;
+    const metal = mat && mat.metalness >= 0.5;
+    if (metal) fx.impact(point, normal); else { fx.impact(point, normal, 0xffc890); fx.dust(point, normal, mat && mat.color ? dustColor(mat.color) : 0x8a8478); }
+    if (!mat || !mat.transparent) fx.decal(point, normal);
+  }
+
+  /** Spent casing flies out of the ejection port (drawn in the viewmodel layer). */
+  ejectShell() {
+    const ej = this.models[this.current].userData.eject;
+    if (!ej || this.scoped) return;
+    const s = this.shells[this.shellNext]; this.shellNext = (this.shellNext + 1) % this.shells.length;
+    ej.updateWorldMatrix(true, false);
+    s.m.position.setFromMatrixPosition(ej.matrixWorld); this.vmCamera.worldToLocal(s.m.position);
+    s.v.set(1.1 + Math.random() * 0.6, 1.0 + Math.random() * 0.5, 0.2 + Math.random() * 0.3);
+    s.spin.set(Math.random() * 20, Math.random() * 20, Math.random() * 20);
+    s.t = 0; s.m.visible = true;
+    s.m.scale.setScalar(this.current === 'sniper' ? 1.4 : this.current === 'pistol' ? 0.8 : 1);
+  }
+
+  updateShells(dt) {
+    for (const s of this.shells) {
+      if (!s.m.visible) continue;
+      s.t += dt;
+      s.v.y -= 7 * dt;
+      s.m.position.addScaledVector(s.v, dt);
+      s.m.rotation.x += s.spin.x * dt; s.m.rotation.y += s.spin.y * dt; s.m.rotation.z += s.spin.z * dt;
+      if (s.t > 0.8) s.m.visible = false;
+    }
   }
 
   /** Approximate world position of the gun barrel. */
@@ -461,8 +510,10 @@ export class WeaponSystem {
     const breathY = Math.sin(t * 1.7) * 0.004 * breath * (1 - this.aimT * 0.8);
     const breathX = Math.sin(t * 0.85) * 0.003 * breath * (1 - this.aimT * 0.8);
     // --- mouse-look sway: the gun lags behind the view (spring) ---
-    S.swayX.step(THREE.MathUtils.clamp(-input.lookDX * 0.0009, -0.05, 0.05) * (1 - this.aimT * 0.7), 120, 14, dt);
-    S.swayY.step(THREE.MathUtils.clamp(input.lookDY * 0.0009, -0.05, 0.05) * (1 - this.aimT * 0.7), 120, 14, dt);
+    // heavier weapons lag more and settle slower (weapon weight)
+    const wgt = WEIGHT[this.current] || 1, sk = 120 / wgt, sd = 14 / Math.sqrt(wgt);
+    S.swayX.step(THREE.MathUtils.clamp(-input.lookDX * 0.0009 * wgt, -0.06, 0.06) * (1 - this.aimT * 0.7), sk, sd, dt);
+    S.swayY.step(THREE.MathUtils.clamp(input.lookDY * 0.0009 * wgt, -0.06, 0.06) * (1 - this.aimT * 0.7), sk, sd, dt);
     // --- recoil kick: impulse into a spring that settles back ---
     if (this.kickV) { S.kick.v += this.kickV; this.kickV = 0; }
     S.kick.step(0, 260, 18, dt);

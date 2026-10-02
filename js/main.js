@@ -17,6 +17,8 @@ import { EffectComposer } from '../lib/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from '../lib/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from '../lib/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from '../lib/addons/postprocessing/OutputPass.js';
+import { GTAOPass } from '../lib/addons/postprocessing/GTAOPass.js';
+import { RoomEnvironment } from '../lib/addons/environments/RoomEnvironment.js';
 import { CONFIG, buildWave } from './config.js';
 import { Sound } from './audio.js';
 import { World } from './world.js';
@@ -28,18 +30,19 @@ import { WeaponSystem } from './weapons.js';
 import { Turrets } from './turrets.js';
 import { HUD } from './hud.js';
 import { Market } from './market.js';
+import { setViewmodelDetail } from './viewmodels.js';
 
 const $ = (id) => document.getElementById(id);
 const DEFAULT_SETTINGS = {
   sens: 1, adsMult: 1, invertY: false, fov: 75,
   master: 0.8, sfx: 1,
-  quality: 'high', res: 1, shadows: true, bloom: true, fps: false,
+  quality: 'high', res: 1, shadows: true, bloom: true, ao: true, detail: true, reflections: true, fps: false,
   chColor: '#5cfff0', chSize: 7,
 };
 const QUALITY = {
-  low: { res: 0.6, shadows: false, bloom: false },
-  medium: { res: 0.85, shadows: true, bloom: false },
-  high: { res: 1, shadows: true, bloom: true },
+  low: { res: 0.6, shadows: false, bloom: false, ao: false, detail: false, reflections: false },
+  medium: { res: 0.85, shadows: true, bloom: false, ao: false, detail: false, reflections: false },
+  high: { res: 1, shadows: true, bloom: true, ao: true, detail: true, reflections: true },
 };
 const SETTINGS_KEY = 'lastSignal3d.settings';
 const BEST_KEY = 'lastSignal3d.best';
@@ -54,6 +57,7 @@ class Game {
     let saved = {};
     try { saved = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}') || {}; } catch (e) { saved = {}; }
     this.settings = Object.assign({}, DEFAULT_SETTINGS, saved);
+    if (saved.ao === undefined && QUALITY[this.settings.quality]) Object.assign(this.settings, QUALITY[this.settings.quality]);
 
     // ---------- renderer & cameras ----------
     this.canvas = $('game');
@@ -76,6 +80,15 @@ class Game {
     this.vmFlash = new THREE.PointLight(0xffc070, 0, 3, 1);
     this.vmFlash.position.set(0.2, -0.1, -0.8);
     this.vmScene.add(this.vmHemi, this.vmSun);
+    this.vmHemi.intensity = 0.8; this.vmSun.intensity = 1.3;
+
+    // Image-based lighting: a pre-filtered (PMREM) studio environment gives
+    // metal and glossy surfaces something real to reflect.
+    const pmrem = new THREE.PMREMGenerator(this.renderer);
+    this.envMap = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+    pmrem.dispose();
+    this.vmScene.environment = this.envMap;
+    this.vmScene.environmentIntensity = 0.3;
     this.vmCamera.add(this.vmFlash);
 
     // Post-processing (bloom). RenderPass #2 draws the gun on top.
@@ -85,7 +98,20 @@ class Game {
     this.vmPass.clear = false;
     this.vmPass.clearDepth = true;
     this.bloomPass = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.55, 0.5, 0.9);
+    // Ambient occlusion (GTAO) — only on the HIGH preset.
+    this.aoPass = new GTAOPass(this.scenePass.scene, this.camera, innerWidth, innerHeight);
+    this.aoPass.updateGtaoMaterial({ radius: 0.7, distanceExponent: 1.5, thickness: 1.5, scale: 1.0, samples: 12 });
+    this.aoPass.updatePdMaterial({ radius: 6, rings: 2, samples: 12 });
+    this.aoPass.blendIntensity = 0.9;
+    const aoSize = this.aoPass.setSize.bind(this.aoPass);
+    this.aoPass.setSize = (w, h) => aoSize(Math.ceil(w / 2), Math.ceil(h / 2));   // half-res AO = much cheaper
+    const aoHide = this.aoPass._overrideVisibility.bind(this.aoPass);
+    this.aoPass._overrideVisibility = function () {   // transparent fx (mist, glows) should not cast AO
+      aoHide();
+      this.scene.traverse((o) => { if (o.isMesh && o.visible && o.material && o.material.transparent) { o.visible = false; this._visibilityCache.push(o); } });
+    };
     this.composer.addPass(this.scenePass);
+    this.composer.addPass(this.aoPass);
     this.composer.addPass(this.vmPass);
     this.composer.addPass(this.bloomPass);
     this.composer.addPass(new OutputPass());
@@ -146,6 +172,10 @@ class Game {
     this.muzzleLight = new THREE.PointLight(0xffc070, 0, 14, 2);
     this.scene.add(this.muzzleLight);
     this.scenePass.scene = this.scene;
+    this.aoPass.scene = this.scene;
+    this.scene.environment = this.envMap;
+    this.scene.environmentIntensity = map.envIntensity ?? 0.14;
+    this.applyDetail();
     const P = this.world.palette;
     this.renderer.toneMappingExposure = P.exposure;
     const bloom = map.bloom || [0.55, 0.5, 0.9];  // [strength, radius, threshold]
@@ -201,7 +231,7 @@ class Game {
     range('opt-sens', 'sens'); range('opt-ads', 'adsMult'); range('opt-fov', 'fov');
     range('opt-master', 'master'); range('opt-sfx', 'sfx');
     range('opt-res', 'res', true); range('opt-chsize', 'chSize');
-    check('opt-invert', 'invertY'); check('opt-shadows', 'shadows', true); check('opt-bloom', 'bloom', true); check('opt-fps', 'fps');
+    check('opt-invert', 'invertY'); check('opt-shadows', 'shadows', true); check('opt-bloom', 'bloom', true); check('opt-ao', 'ao', true); check('opt-detail', 'detail', true); check('opt-refl', 'reflections', true); check('opt-fps', 'fps');
     $('opt-mute').onchange = () => { Sound.toggleMute(); };
     $('opt-quality').onchange = (e) => {
       s.quality = e.target.value;
@@ -210,6 +240,14 @@ class Game {
     };
     $('opt-chcolor').onchange = (e) => { s.chColor = e.target.value; this.applySettings(); };
     $('opt-chcustom').oninput = (e) => { s.chColor = e.target.value; this.applySettings(); };
+  }
+
+  /** Surface detail (normal/roughness maps, HIGH) + reflections (env map, MEDIUM+). */
+  applyDetail() {
+    if (!this.world || !this.scene) return;
+    this.world.setDetail(this.settings.detail !== false);
+    setViewmodelDetail(this.settings.detail !== false);
+    this.scene.environment = this.settings.reflections !== false ? this.envMap : null;
   }
 
   openSettings() {
@@ -232,7 +270,8 @@ class Game {
     val('fov', s.fov, s.fov + '°');
     val('master', s.master, Math.round(s.master * 100) + '%'); val('sfx', s.sfx, Math.round(s.sfx * 100) + '%');
     val('res', s.res, Math.round(s.res * 100) + '%'); val('chsize', s.chSize, s.chSize + 'px');
-    $('opt-invert').checked = s.invertY; $('opt-shadows').checked = s.shadows; $('opt-bloom').checked = s.bloom;
+    $('opt-invert').checked = s.invertY; $('opt-shadows').checked = s.shadows; $('opt-bloom').checked = s.bloom; $('opt-ao').checked = s.ao; $('opt-detail').checked = s.detail; $('opt-refl').checked = s.reflections;
+    this.applyDetail();
     $('opt-fps').checked = s.fps; $('opt-mute').checked = Sound.muted; $('opt-quality').value = s.quality;
     const preset = [...$('opt-chcolor').options].some((o) => o.value === s.chColor);
     $('opt-chcolor').value = preset ? s.chColor : '#5cfff0';
@@ -746,7 +785,7 @@ class Game {
     this.enemies.update(dt);
     this.turrets.update(dt);
     this.effects.update(dt);
-    this.muzzleLight.position.copy(this.camera.position);
+    this.muzzleLight.position.copy(this.weapons.muzzleWorld());
     this.muzzleLight.intensity = Math.max(0, this.muzzleLight.intensity - dt * 400);
     this.vmFlash.intensity = Math.max(0, this.vmFlash.intensity - dt * 100);
 
@@ -768,8 +807,10 @@ class Game {
 
   render() {
     const showGun = this.state === 'playing' || this.state === 'paused';
-    if (this.settings.bloom) {
+    if (this.settings.bloom || this.settings.ao) {
       this.vmPass.enabled = showGun;
+      this.bloomPass.enabled = this.settings.bloom;
+      this.aoPass.enabled = this.settings.ao;
       this.composer.render();
     } else {
       this.renderer.autoClear = true;

@@ -11,6 +11,14 @@ python3 -m http.server 8000     # in this folder
 ```
 (Opening the file directly with `file://` won't work, because browsers block ES modules there. Serve it over HTTP.)
 
+## Graphics / realism
+
+- Physically based materials everywhere (MeshStandardMaterial with roughness/metalness). Procedural PBR textures (`js/textures.js`: concrete, brushed metal, stone, wood, grass, gun polymer) give every surface an albedo, a normal map and a roughness map, with world-scaled UVs so nothing stretches.
+- Image-based lighting from a PMREM-filtered `RoomEnvironment`, ACES filmic tone mapping, sRGB output, soft PCF shadows, half-resolution GTAO ambient occlusion.
+- More detailed guns (rails, serrations, sights, trigger guards, bolts, scope rings, steel/polymer/brass materials), brass shell ejection, muzzle-flash light, bullet-hole decals, sparks on metal and dust puffs on everything else.
+- Enemies have darker organic skin with small glowing accents. Movement is heavier: acceleration and deceleration, a snappier jump, head bob, and heavier guns lag more.
+- Quality presets: **Low** turns off shadows, bloom, AO, reflections and normal maps (fastest). **Medium** adds shadows and 85% resolution. **High** adds full resolution, bloom, AO, reflections and normal maps. Each option can also be toggled on its own in Settings.
+
 ## Settings
 
 Title screen or pause menu → **SETTINGS**: mouse sensitivity, scoped/ADS multiplier, invert Y, field of view, master/SFX volume, quality preset (low/medium/high), resolution scale, shadows, bloom, FPS counter, crosshair colour and size. Saved in localStorage and applied immediately.

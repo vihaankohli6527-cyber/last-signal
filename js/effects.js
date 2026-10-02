@@ -71,6 +71,50 @@ export class Effects {
       this.tracers.push({ m, t: 0, dur: 0.07 });
     }
     this.tracerNext = 0;
+
+    // ---------- bullet-hole decals (ring buffer, oldest gets reused) ----------
+    this.decals = [];
+    const holeMat = new THREE.MeshStandardMaterial({ map: holeTexture(), transparent: true, depthWrite: false, roughness: 0.9,
+      polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 });
+    const holeGeo = new THREE.PlaneGeometry(0.14, 0.14);
+    for (let i = 0; i < 60; i++) {
+      const m = new THREE.Mesh(holeGeo, holeMat.clone()); m.visible = false; m.renderOrder = 1;
+      scene.add(m); this.decals.push({ m, t: 0 });
+    }
+    this.decalNext = 0;
+
+    // ---------- dust puffs (soft, normally blended sprites) ----------
+    this.puffs = [];
+    const smoke = dotTexture();
+    for (let i = 0; i < 24; i++) {
+      const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: smoke, color: 0x9a948a, transparent: true, depthWrite: false, opacity: 0 }));
+      s.visible = false; scene.add(s); this.puffs.push({ s, t: 1, vel: new THREE.Vector3() });
+    }
+    this.puffNext = 0;
+  }
+
+  /* Bullet hole stuck to a surface (point + world-space normal). */
+  decal(pos, normal) {
+    const d = this.decals[this.decalNext]; this.decalNext = (this.decalNext + 1) % this.decals.length;
+    d.m.position.copy(pos).addScaledVector(normal, 0.01);
+    d.m.lookAt(_v3.copy(d.m.position).add(normal));
+    d.m.rotateZ(Math.random() * Math.PI * 2);
+    d.m.scale.setScalar(0.7 + Math.random() * 0.6);
+    d.m.material.opacity = 1; d.m.visible = true; d.t = 0;
+  }
+
+  /* Puff of dust / debris where a bullet hits stone, wood, dirt... */
+  dust(pos, normal, color = 0x9a948a) {
+    for (let k = 0; k < 2; k++) {
+      const p = this.puffs[this.puffNext]; this.puffNext = (this.puffNext + 1) % this.puffs.length;
+      p.s.position.copy(pos).addScaledVector(normal, 0.05);
+      p.vel.copy(normal).multiplyScalar(0.8 + Math.random()).add(_v3.set((Math.random() - 0.5) * 0.6, 0.3 + Math.random() * 0.4, (Math.random() - 0.5) * 0.6));
+      p.s.material.color.setHex(color); p.t = 0; p.dur = 0.6 + Math.random() * 0.4; p.s.visible = true;
+    }
+    for (let i = 0; i < 5; i++) {  // a few dark chips
+      const s = 1.5 + Math.random() * 2.5;
+      this.spawn(pos.x, pos.y, pos.z, normal.x * 2 + (Math.random() - 0.5) * s, normal.y * 2 + Math.random() * s, normal.z * 2 + (Math.random() - 0.5) * s, 0.35, 0x3a3630, 14, 0.5);
+    }
   }
 
   /* Spawn one particle. color is a THREE.Color or hex number. */
@@ -161,6 +205,23 @@ export class Effects {
     }
     this.flash.intensity = Math.max(0, this.flash.intensity - dt * 250);
 
+    // decals fade out after ~10 s
+    for (const d of this.decals) {
+      if (!d.m.visible) continue;
+      d.t += dt;
+      if (d.t > 10) { d.m.material.opacity = Math.max(0, 1 - (d.t - 10) / 2); if (d.t > 12) d.m.visible = false; }
+    }
+    // dust puffs grow and fade
+    for (const p of this.puffs) {
+      if (!p.s.visible) continue;
+      p.t += dt;
+      const f = p.t / p.dur;
+      if (f >= 1) { p.s.visible = false; continue; }
+      p.s.position.addScaledVector(p.vel, dt); p.vel.multiplyScalar(1 - dt * 2.5);
+      p.s.scale.setScalar(0.25 + f * 0.9);
+      p.s.material.opacity = (1 - f) * 0.55;
+    }
+
     // tracers
     for (const t of this.tracers) {
       if (!t.m.visible) continue;
@@ -170,4 +231,17 @@ export class Effects {
     }
   }
 }
-const _c = new THREE.Color();
+const _c = new THREE.Color(), _v3 = new THREE.Vector3();
+
+// Bullet hole: dark centre, scorched ring, soft transparent edge.
+function holeTexture() {
+  const c = document.createElement('canvas'); c.width = c.height = 64;
+  const g = c.getContext('2d');
+  const grd = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+  grd.addColorStop(0, 'rgba(5,5,5,1)'); grd.addColorStop(0.18, 'rgba(10,10,10,1)');
+  grd.addColorStop(0.3, 'rgba(40,36,32,0.85)'); grd.addColorStop(0.6, 'rgba(30,28,25,0.35)'); grd.addColorStop(1, 'rgba(0,0,0,0)');
+  g.fillStyle = grd; g.fillRect(0, 0, 64, 64);
+  g.strokeStyle = 'rgba(15,15,15,0.6)'; g.lineWidth = 1.5;
+  for (let i = 0; i < 7; i++) { const a = Math.random() * 6.28; g.beginPath(); g.moveTo(32 + Math.cos(a) * 6, 32 + Math.sin(a) * 6); g.lineTo(32 + Math.cos(a) * (12 + Math.random() * 12), 32 + Math.sin(a) * (12 + Math.random() * 12)); g.stroke(); }
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+}

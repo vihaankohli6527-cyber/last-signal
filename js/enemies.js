@@ -8,6 +8,7 @@
    Every enemy is built from simple shapes with glowing (emissive) materials.
    ========================================================================= */
 import * as THREE from '../lib/three.module.js';
+import { surface } from './textures.js';
 import { CONFIG } from './config.js';
 
 const _v = new THREE.Vector3();
@@ -35,6 +36,8 @@ function part(group, geo, mat, x, y, z, sx, sy, sz, head = false) {
   group.add(m);
   return m;
 }
+
+const GLOW_I = 1.6, BODY_I = 0.03, SKIN_I = 0.07;   // emissive strengths (subtle)
 
 export class Enemy {
   constructor(type, scale, pos, manager) {
@@ -64,10 +67,14 @@ export class Enemy {
     this.target = def.target === 'mixed' ? (Math.random() < 0.5 ? 'tower' : 'player') : def.target;
 
     // Two materials per enemy (cloned so the hit-flash only affects this one).
-    this.glowMat = new THREE.MeshStandardMaterial({ color: 0x000000, emissive: def.color, emissiveIntensity: 2.2, roughness: 0.4 });
-    this.bodyMat = new THREE.MeshStandardMaterial({ color: 0x1c1430, emissive: def.color, emissiveIntensity: 0.15, roughness: 0.35, metalness: 0.3 });
-    // "skin": coloured, shaded, softly glowing main body (so shapes stay readable)
-    this.skinMat = new THREE.MeshStandardMaterial({ color: new THREE.Color(def.color).multiplyScalar(0.45), emissive: def.color, emissiveIntensity: 0.45, roughness: 0.3, metalness: 0.2, flatShading: true });
+    // Natural look: dark organic skin + chitin, with small glowing accents (eyes, sacs).
+    const tex = surface('stone');
+    this.glowMat = new THREE.MeshStandardMaterial({ color: 0x000000, emissive: def.color, emissiveIntensity: GLOW_I, roughness: 0.4 });
+    this.bodyMat = new THREE.MeshStandardMaterial({ color: 0x17141b, emissive: def.color, emissiveIntensity: BODY_I, roughness: 0.42, metalness: 0.15,
+      normalMap: tex.normalMap, roughnessMap: tex.roughnessMap, normalScale: new THREE.Vector2(0.8, 0.8) });
+    const skin = new THREE.Color(0x3a312c).lerp(new THREE.Color(def.color), 0.22);
+    this.skinMat = new THREE.MeshStandardMaterial({ color: skin, emissive: def.color, emissiveIntensity: SKIN_I, roughness: 0.62, metalness: 0.0,
+      map: tex.map, normalMap: tex.normalMap, roughnessMap: tex.roughnessMap, normalScale: new THREE.Vector2(1.2, 1.2) });
     this.eyeMat = manager.eyeMat;
     this.group = new THREE.Group();
     this.build();
@@ -258,8 +265,8 @@ export class Enemy {
       this.glowMat.emissive.setHex(0xffffff); this.bodyMat.emissive.setHex(0xffffff); this.bodyMat.emissiveIntensity = 1.2;
       this.skinMat.emissive.setHex(0xffffff); this.skinMat.emissiveIntensity = 1.5;
     } else {
-      this.glowMat.emissive.setHex(this.def.color); this.bodyMat.emissive.setHex(this.def.color); this.bodyMat.emissiveIntensity = 0.15;
-      this.skinMat.emissive.setHex(this.def.color); this.skinMat.emissiveIntensity = 0.45;
+      this.glowMat.emissive.setHex(this.def.color); this.bodyMat.emissive.setHex(this.def.color); this.bodyMat.emissiveIntensity = BODY_I;
+      this.skinMat.emissive.setHex(this.def.color); this.skinMat.emissiveIntensity = SKIN_I;
     }
 
     // ---- health bar ----
