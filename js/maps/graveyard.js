@@ -1,6 +1,6 @@
 /* Map: GRAVEYARD — an old cemetery at midnight.
    Rows of tombstones, dead trees, mausoleums, an iron fence, moonlight and green mist. */
-import { canvasTexture } from '../world.js';
+import { canvasTexture } from '../world.js?v=5da3e5f8d0';
 
 export const MAP = {
   id: 'graveyard',

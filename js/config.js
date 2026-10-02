@@ -38,8 +38,8 @@ export const CONFIG = {
     crouchHeight: 1.05,     // eye height while crouched
     crouchSpeed: 3.2,
     crouchSpread: 0.65,     // weapon spread multiplier while crouched
-    slideSpeed: 14.0,       // burst speed at the start of a slide
-    slideTime: 0.7,         // seconds for the slide to decay
+    slideSpeed: 16.0,       // burst speed at the start of a slide
+    slideTime: 0.75,        // seconds for the slide to decay
     slideCooldown: 1.0,
   },
 

@@ -1,6 +1,6 @@
 /* Map: ALIEN TOMB — ruins of an ancient alien temple.
    Stone pillars with glowing purple/teal runes, sarcophagi as cover, thick mist. */
-import { canvasTexture } from '../world.js';
+import { canvasTexture } from '../world.js?v=5da3e5f8d0';
 
 export const MAP = {
   id: 'tomb',

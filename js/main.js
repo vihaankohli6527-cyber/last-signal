@@ -19,18 +19,18 @@ import { UnrealBloomPass } from '../lib/addons/postprocessing/UnrealBloomPass.js
 import { OutputPass } from '../lib/addons/postprocessing/OutputPass.js';
 import { GTAOPass } from '../lib/addons/postprocessing/GTAOPass.js';
 import { RoomEnvironment } from '../lib/addons/environments/RoomEnvironment.js';
-import { CONFIG, buildWave } from './config.js';
-import { Sound } from './audio.js';
-import { World } from './world.js';
-import { MAPS } from './maps/index.js';
-import { Effects } from './effects.js';
-import { EnemyManager } from './enemies.js';
-import { Player } from './player.js';
-import { WeaponSystem } from './weapons.js';
-import { Turrets } from './turrets.js';
-import { HUD } from './hud.js';
-import { Market } from './market.js';
-import { setViewmodelDetail } from './viewmodels.js';
+import { CONFIG, buildWave } from './config.js?v=5da3e5f8d0';
+import { Sound } from './audio.js?v=5da3e5f8d0';
+import { World } from './world.js?v=5da3e5f8d0';
+import { MAPS } from './maps/index.js?v=5da3e5f8d0';
+import { Effects } from './effects.js?v=5da3e5f8d0';
+import { EnemyManager } from './enemies.js?v=5da3e5f8d0';
+import { Player } from './player.js?v=5da3e5f8d0';
+import { WeaponSystem } from './weapons.js?v=5da3e5f8d0';
+import { Turrets } from './turrets.js?v=5da3e5f8d0';
+import { HUD } from './hud.js?v=5da3e5f8d0';
+import { Market } from './market.js?v=5da3e5f8d0';
+import { setViewmodelDetail } from './viewmodels.js?v=5da3e5f8d0';
 
 const $ = (id) => document.getElementById(id);
 const DEFAULT_SETTINGS = {
@@ -44,6 +44,17 @@ const QUALITY = {
   medium: { res: 0.85, shadows: true, bloom: false, ao: false, detail: false, reflections: false },
   high: { res: 1, shadows: true, bloom: true, ao: true, detail: true, reflections: true },
 };
+/* Physical key (layout independent, ignores Shift/Caps: Shift+C is still 'KeyC').
+   Falls back to e.key for the rare keyboards/IMEs that report an empty code. */
+function keyCode(e) {
+  if (e.code) return e.code;
+  const k = e.key || '';
+  if (k === ' ') return 'Space';
+  if (k === 'Shift') return 'ShiftLeft';
+  if (k.length === 1 && /[a-z]/i.test(k)) return 'Key' + k.toUpperCase();
+  if (/^[0-9]$/.test(k)) return 'Digit' + k;
+  return k;
+}
 const SETTINGS_KEY = 'lastSignal3d.settings';
 const BEST_KEY = 'lastSignal3d.best';
 
@@ -646,17 +657,18 @@ class Game {
   // ================================================================== input
   setupInput() {
     window.addEventListener('keydown', (e) => {
+      const code = keyCode(e);
       Sound.init();
-      if (['Space', 'ArrowUp', 'ArrowDown', 'Tab'].includes(e.code)) e.preventDefault();
+      if (['Space', 'ArrowUp', 'ArrowDown', 'Tab'].includes(code) || (this.state === 'playing' && CONFIG.KEYS.crouch.includes(code))) e.preventDefault();
       if (e.repeat) return;
-      this.keys[e.code] = true;
-      this.onKey(e.code);
+      this.keys[code] = true;
+      this.onKey(code);
       if (this.state === 'playing' && !this.market.open) {
-        if (CONFIG.KEYS.crouch.includes(e.code)) this.player.crouchTap = true;
-        if (CONFIG.KEYS.jump.includes(e.code)) this.player.jumpTap = true;
+        if (CONFIG.KEYS.crouch.includes(code)) this.player.crouchTap = true;
+        if (CONFIG.KEYS.jump.includes(code)) this.player.jumpTap = true;
       }
     });
-    window.addEventListener('keyup', (e) => { this.keys[e.code] = false; });
+    window.addEventListener('keyup', (e) => { this.keys[keyCode(e)] = false; });
     window.addEventListener('blur', () => { this.keys = {}; this.input.mouseL = this.input.mouseR = false; });
     this.canvas.addEventListener('mousedown', (e) => {
       Sound.init();
@@ -765,7 +777,7 @@ class Game {
     const d = this.weapons.def;
     const baseFov = this.settings.fov;
     const zoomFov = d.zoom ? Math.min(d.zoom, baseFov) : baseFov - 8;   // ADS zooms a little even without a scope
-    const targetFov = baseFov + (zoomFov - baseFov) * this.weapons.aimT + (p.sprinting ? 5 : 0);
+    const targetFov = baseFov + (zoomFov - baseFov) * this.weapons.aimT + (p.sprinting ? 5 : 0) + (p.slideK || 0) * 10;
     if (Math.abs(this.camera.fov - targetFov) > 0.01) {
       this.camera.fov += (targetFov - this.camera.fov) * Math.min(1, dt * 15);
       this.camera.updateProjectionMatrix();

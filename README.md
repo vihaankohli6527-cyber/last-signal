@@ -58,3 +58,7 @@ Key bindings live in `CONFIG.KEYS` in `js/config.js` (each action takes a list o
 - `lib/`: vendored `three.module.js`, `three.core.js`, plus the PointerLockControls and EffectComposer/RenderPass/UnrealBloomPass/OutputPass addons
 
 High score and settings are saved in `localStorage`.
+
+## Releasing
+
+Run `python3 tools/bump-version.py` before committing. It stamps every module import and the `<script>`/`<link>` tags with `?v=<content hash>`, so players' browsers load the new code instead of cached files (GitHub Pages caches for 10 minutes).

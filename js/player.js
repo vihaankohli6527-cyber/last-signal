@@ -4,8 +4,8 @@
    camera shake. Mouse-look itself is done by PointerLockControls (main.js).
    ========================================================================= */
 import * as THREE from '../lib/three.module.js';
-import { Sound } from './audio.js';
-import { CONFIG } from './config.js';
+import { Sound } from './audio.js?v=5da3e5f8d0';
+import { CONFIG } from './config.js?v=5da3e5f8d0';
 
 const P = CONFIG.PLAYER;
 const _fwd = new THREE.Vector3(), _right = new THREE.Vector3(), _eye = new THREE.Vector3();
@@ -36,7 +36,7 @@ export class Player {
     this.landImpact = 0;
     this.crouched = false; this.crouchK = 0; this.eyeHeight = P.height;
     this.slideT = 0; this.slideCd = 0; this.slideK = 0; this.slideDir = new THREE.Vector3(); this.slideRoll = 0;
-    this.prevCrouchKey = false;
+    this.prevCrouchKey = false; this.slideBuffer = 0; this.coyote = 0; this.slideStartSpeed = P.slideSpeed;
     this.punchP = { x: 0, v: 0 }; this.punchR = { x: 0, v: 0 }; this.punchApplied = 0;
     this.syncCamera();
     // Face the tower: yaw angle from our position toward (0,0).
@@ -112,15 +112,25 @@ export class Player {
     this.prevCrouchKey = crouchKey;
     const wantSprint = this.moving && down(K.sprint) && !this.aiming && fwdKey;
 
-    // --- slide: C while sprinting on the ground ---
+    // --- slide: press C while sprinting (or already moving forward fast) ---
+    // The press is buffered for a moment so slightly early/late taps still count.
     this.slideCd = Math.max(0, this.slideCd - dt);
-    if (crouchPressed && wantSprint && this.onGround && this.slideCd <= 0 && !this.sliding) {
+    this.coyote = this.onGround ? 0.12 : Math.max(0, this.coyote - dt);
+    this.slideBuffer = crouchPressed ? 0.2 : Math.max(0, (this.slideBuffer || 0) - dt);
+    const hSpeed = Math.hypot(this.vel.x, this.vel.z);
+    const fwdSpeed = this.vel.x * _fwd.x + this.vel.z * _fwd.z;      // speed along where we look
+    const fastForward = fwdSpeed > P.sprintSpeed * 0.8 || (wantSprint && hSpeed > P.walkSpeed * 0.5);
+    const groundedish = this.onGround || this.coyote > 0;             // tiny bumps don't block it
+    if (this.slideBuffer > 0 && fastForward && groundedish && this.slideCd <= 0 && !this.sliding) {
+      this.slideBuffer = 0;
       this.slideT = P.slideTime;
       this.slideCd = P.slideTime + P.slideCooldown;
       this.slideDir.set(this.vel.x, 0, this.vel.z);
       if (this.slideDir.lengthSq() < 1) this.slideDir.set(mx, 0, mz);
       this.slideDir.normalize();
       Sound.slide();
+      this.punch(-0.03, 0.02);                                         // camera kick as you drop
+      this.slideStartSpeed = Math.max(P.slideSpeed, hSpeed * 1.5);     // always a clear burst
     }
     // --- crouch state (can't stand up under low cover) ---
     if (this.sliding || crouchKey) this.crouched = true;
@@ -133,7 +143,7 @@ export class Player {
     if (this.sliding) {
       this.slideT -= dt;
       const f = Math.max(0, this.slideT / P.slideTime);           // 1 -> 0
-      const sp = P.crouchSpeed + (P.slideSpeed - P.crouchSpeed) * f * f;  // decaying burst
+      const sp = P.crouchSpeed + (this.slideStartSpeed - P.crouchSpeed) * (f * f * (3 - 2 * f));  // decaying burst
       this.vel.x = this.slideDir.x * sp + mx * 0.15;               // a little steering
       this.vel.z = this.slideDir.z * sp + mz * 0.15;
     } else {
@@ -154,8 +164,8 @@ export class Player {
     // Smooth eye height (crouch) + slide dip / tilt.
     this.crouchK += ((this.crouched ? 1 : 0) - this.crouchK) * Math.min(1, dt * 12);
     this.slideK += ((this.sliding ? 1 : 0) - this.slideK) * Math.min(1, dt * (this.sliding ? 14 : 6));
-    this.eyeHeight = P.height + (P.crouchHeight - P.height) * this.crouchK - this.slideK * 0.18;
-    this.slideRoll = this.slideK * 0.07;
+    this.eyeHeight = P.height + (P.crouchHeight - P.height) * this.crouchK - this.slideK * 0.3;
+    this.slideRoll = this.slideK * 0.12;
 
     // Move horizontally and collide with cover.
     let nx = this.pos.x + this.vel.x * dt, nz = this.pos.z + this.vel.z * dt;
