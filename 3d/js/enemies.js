@@ -8,8 +8,8 @@
    Every enemy is built from simple shapes with glowing (emissive) materials.
    ========================================================================= */
 import * as THREE from '../lib/three.module.js';
-import { surface } from './textures.js?v=5da3e5f8d0';
-import { CONFIG } from './config.js?v=5da3e5f8d0';
+import { surface } from './textures.js?v=0c35b74f43';
+import { CONFIG } from './config.js?v=0c35b74f43';
 
 const _v = new THREE.Vector3();
 const _v2 = new THREE.Vector3();

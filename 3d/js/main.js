@@ -19,18 +19,18 @@ import { UnrealBloomPass } from '../lib/addons/postprocessing/UnrealBloomPass.js
 import { OutputPass } from '../lib/addons/postprocessing/OutputPass.js';
 import { GTAOPass } from '../lib/addons/postprocessing/GTAOPass.js';
 import { RoomEnvironment } from '../lib/addons/environments/RoomEnvironment.js';
-import { CONFIG, buildWave } from './config.js?v=5da3e5f8d0';
-import { Sound } from './audio.js?v=5da3e5f8d0';
-import { World } from './world.js?v=5da3e5f8d0';
-import { MAPS } from './maps/index.js?v=5da3e5f8d0';
-import { Effects } from './effects.js?v=5da3e5f8d0';
-import { EnemyManager } from './enemies.js?v=5da3e5f8d0';
-import { Player } from './player.js?v=5da3e5f8d0';
-import { WeaponSystem } from './weapons.js?v=5da3e5f8d0';
-import { Turrets } from './turrets.js?v=5da3e5f8d0';
-import { HUD } from './hud.js?v=5da3e5f8d0';
-import { Market } from './market.js?v=5da3e5f8d0';
-import { setViewmodelDetail } from './viewmodels.js?v=5da3e5f8d0';
+import { CONFIG, buildWave } from './config.js?v=0c35b74f43';
+import { Sound } from './audio.js?v=0c35b74f43';
+import { World } from './world.js?v=0c35b74f43';
+import { MAPS } from './maps/index.js?v=0c35b74f43';
+import { Effects } from './effects.js?v=0c35b74f43';
+import { EnemyManager } from './enemies.js?v=0c35b74f43';
+import { Player } from './player.js?v=0c35b74f43';
+import { WeaponSystem } from './weapons.js?v=0c35b74f43';
+import { Turrets } from './turrets.js?v=0c35b74f43';
+import { HUD } from './hud.js?v=0c35b74f43';
+import { Market } from './market.js?v=0c35b74f43';
+import { setViewmodelDetail } from './viewmodels.js?v=0c35b74f43';
 
 const $ = (id) => document.getElementById(id);
 const DEFAULT_SETTINGS = {

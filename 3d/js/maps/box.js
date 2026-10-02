@@ -1,6 +1,6 @@
 /* Map: BOX — a clean, bright training map made of big blocks.
    Prototype "grid" textures, like a practice range / aim map. */
-import { canvasTexture } from '../world.js?v=5da3e5f8d0';
+import { canvasTexture } from '../world.js?v=0c35b74f43';
 
 // Grid texture like a level-designer prototype material.
 function gridTex(base, line, repeat) {

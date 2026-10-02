@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta name="app-version" content="0c35b74f43" />
+      <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Last Signal 3D</title>
+  <link rel="stylesheet" href="css/style.css?v=0c35b74f43" />
+</head>
+<body>
+  <!-- The 3D view is drawn into this canvas -->
+  <canvas id="game"></canvas>
+
+  <!-- ================= HUD (shown while playing) ================= -->
+  <div id="hud" class="hidden">
+    <div id="scope" class="hidden"><div class="scope-ring"></div></div>
+    <div id="vignette"></div>
+    <div id="crosshair"><i class="ch t"></i><i class="ch b"></i><i class="ch l"></i><i class="ch r"></i><i class="dot"></i></div>
+    <div id="hitmarker"><i></i><i></i><i></i><i></i></div>
+    <div id="dmg-indicators"></div>
+    <div id="dmg-numbers"></div>
+    <div id="charge"><div id="charge-fill"></div></div>
+
+    <div id="top-center">
+      <div id="area-wave"><span id="area-label">AREA 1</span><span class="sep">//</span><span id="wave-label">WAVE 1</span></div>
+      <div id="signal"><div class="lbl">RESCUE SIGNAL</div><div class="bar"><div id="signal-fill"></div></div></div>
+      <div id="enemies-left">ENEMIES 0</div>
+      <div id="boss-bar" class="hidden"><div class="lbl">⚠ HIVE COLOSSUS</div><div class="bar"><div id="boss-fill"></div></div></div>
+    </div>
+
+    <div id="tower-panel">
+      <div class="lbl">📡 RADIO TOWER</div>
+      <div class="bar big"><div id="tower-fill"></div><span id="tower-text">1000</span></div>
+    </div>
+
+    <div id="credits-panel"><span class="cr-icon">◆</span><span id="credits">0</span></div>
+    <div id="killfeed"></div>
+
+    <div id="vitals">
+      <div class="vital"><span class="ico">✚</span><span id="hp-text" class="num">100</span><div class="bar"><div id="hp-fill"></div></div></div>
+      <div class="vital armour"><span class="ico">⛨</span><span id="armour-text" class="num">0</span><div class="bar"><div id="armour-fill"></div></div></div>
+    </div>
+
+    <div id="weapon-panel">
+      <div id="weapon-slots"></div>
+      <div id="weapon-name">CLASSIC PISTOL</div>
+      <div id="ammo"><span id="ammo-mag">12</span><span id="ammo-res">/ ∞</span></div>
+      <div id="reload-bar" class="hidden"><div id="reload-fill"></div></div>
+    </div>
+
+    <div id="banner" class="hidden"><div id="banner-title">WAVE 1</div><div id="banner-sub"></div></div>
+    <div id="hint"></div>
+  </div>
+
+  <!-- ================= Title screen ================= -->
+  <div id="title" class="screen">
+    <div class="title-wrap">
+      <div class="logo"><span class="l1">LAST</span><span class="l2">SIGNAL</span><span class="l3">3D</span></div>
+      <p class="tagline">Defend the radio tower. Survive the swarm. Keep the signal alive.</p>
+      <button id="btn-play" class="btn primary">PLAY</button>
+      <button id="btn-title-settings" class="btn">SETTINGS</button>
+      <div id="best-score" class="best"></div>
+      <div class="controls-grid">
+        <div><b>WASD</b> move</div><div><b>SHIFT</b> sprint</div><div><b>SPACE</b> jump</div>
+        <div><b>LMB</b> fire</div><div><b>RMB</b> aim / scope / draw</div><div><b>R</b> reload</div>
+        <div><b>C</b> crouch · sprint+C slide</div><div><b>Y</b> inspect</div><div><b>B</b> market</div>
+        <div><b>1-7 / WHEEL</b> weapons</div><div><b>ESC</b> pause</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= Map select ================= -->
+  <div id="mapselect" class="screen hidden">
+    <h2 class="screen-title">SELECT STARTING AREA</h2>
+    <p class="screen-sub">Clear 10 waves and the rescue ship flies you to the next area. The campaign never ends — only you do.</p>
+    <div id="map-cards"></div>
+    <div class="row">
+      <button id="btn-map-back" class="btn">BACK</button>
+      <button id="btn-map-go" class="btn primary">DEPLOY</button>
+    </div>
+  </div>
+
+  <!-- ================= Market ================= -->
+  <div id="market" class="hidden">
+    <div class="mk-header">
+      <div class="mk-title">MARKET<span id="mk-sub">BUY PHASE</span></div>
+      <div class="mk-credits"><span class="cr-icon">◆</span><span id="mk-credits">0</span></div>
+    </div>
+    <div class="mk-body">
+      <div class="mk-col">
+        <div class="mk-section">WEAPONS</div>
+        <div id="mk-weapons" class="mk-grid"></div>
+      </div>
+      <div class="mk-col narrow">
+        <div class="mk-section">GEAR &amp; SUPPORT</div>
+        <div id="mk-items" class="mk-list"></div>
+        <div id="mk-status"></div>
+      </div>
+    </div>
+    <div class="mk-footer">
+      <span id="mk-tip">Tip: press the number shown on a card to buy it quickly.</span>
+      <button id="btn-mk-close" class="btn">CLOSE [B]</button>
+      <button id="btn-mk-ready" class="btn primary">READY — NEXT WAVE</button>
+    </div>
+  </div>
+
+  <!-- ================= Pause ================= -->
+  <div id="pause" class="screen hidden">
+    <h2 class="screen-title">PAUSED</h2>
+    <div class="row">
+      <button id="btn-resume" class="btn primary">RESUME</button>
+      <button id="btn-pause-settings" class="btn">SETTINGS</button>
+      <button id="btn-quit" class="btn">QUIT TO TITLE</button>
+    </div>
+  </div>
+
+  <!-- ================= Settings ================= -->
+  <div id="settings" class="screen hidden">
+    <h2 class="screen-title">SETTINGS</h2>
+    <div class="settings settings-grid">
+      <div class="sec">CONTROLS</div>
+      <label>Mouse sensitivity <span class="ctl"><input type="range" id="opt-sens" min="0.1" max="4" step="0.05" /><output id="val-sens"></output></span></label>
+      <label>Scoped / ADS multiplier <span class="ctl"><input type="range" id="opt-ads" min="0.2" max="2" step="0.05" /><output id="val-ads"></output></span></label>
+      <label>Invert Y <input type="checkbox" id="opt-invert" /></label>
+      <label>Field of view <span class="ctl"><input type="range" id="opt-fov" min="60" max="110" step="1" /><output id="val-fov"></output></span></label>
+      <div class="sec">AUDIO</div>
+      <label>Master volume <span class="ctl"><input type="range" id="opt-master" min="0" max="1" step="0.01" /><output id="val-master"></output></span></label>
+      <label>SFX volume <span class="ctl"><input type="range" id="opt-sfx" min="0" max="1" step="0.01" /><output id="val-sfx"></output></span></label>
+      <label>Mute (M) <input type="checkbox" id="opt-mute" /></label>
+      <div class="sec">GRAPHICS</div>
+      <label>Quality preset <select id="opt-quality"><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option><option value="custom">Custom</option></select></label>
+      <label>Resolution scale <span class="ctl"><input type="range" id="opt-res" min="0.4" max="1" step="0.05" /><output id="val-res"></output></span></label>
+      <label>Shadows <input type="checkbox" id="opt-shadows" /></label>
+      <label>Bloom (glow) <input type="checkbox" id="opt-bloom" /></label>
+      <label>Ambient occlusion <input type="checkbox" id="opt-ao" /></label>
+      <label>Surface detail (normal maps) <input type="checkbox" id="opt-detail" /></label>
+      <label>Reflections (environment) <input type="checkbox" id="opt-refl" /></label>
+      <label>Show FPS <input type="checkbox" id="opt-fps" /></label>
+      <div class="sec">CROSSHAIR</div>
+      <label>Colour <span class="ctl"><select id="opt-chcolor"><option value="#5cfff0">Cyan</option><option value="#ffffff">White</option><option value="#39ff5a">Green</option><option value="#ffe83d">Yellow</option><option value="#ff4655">Red</option><option value="#ff4dff">Magenta</option></select><input type="color" id="opt-chcustom" /></span></label>
+      <label>Size <span class="ctl"><input type="range" id="opt-chsize" min="3" max="16" step="1" /><output id="val-chsize"></output></span></label>
+      <div class="ch-preview"><div id="ch-preview"><i class="ch t"></i><i class="ch b"></i><i class="ch l"></i><i class="ch r"></i><i class="dot"></i></div></div>
+    </div>
+    <div class="row">
+      <button id="btn-settings-reset" class="btn">RESET DEFAULTS</button>
+      <button id="btn-settings-back" class="btn primary">BACK</button>
+    </div>
+  </div>
+
+  <!-- ================= Area transition (rescue cutscene) ================= -->
+  <div id="cutscene" class="hidden">
+    <div class="cs-bars top"></div><div class="cs-bars bottom"></div>
+    <div id="cs-text"><div class="cs-main">RESCUE HAS ARRIVED</div><div class="cs-sub">RELOCATING TO NEXT AREA...</div></div>
+  </div>
+  <div id="fade"></div>
+
+  <!-- ================= Game over ================= -->
+  <div id="gameover" class="screen hidden">
+    <h2 class="screen-title red">SIGNAL LOST</h2>
+    <p id="go-reason" class="screen-sub"></p>
+    <div id="go-stats" class="stats"></div>
+    <div id="go-best" class="best"></div>
+    <div class="row">
+      <button id="btn-retry" class="btn primary">RETRY</button>
+      <button id="btn-go-maps" class="btn">MAP SELECT</button>
+    </div>
+  </div>
+
+  <div id="fps" class="hidden"></div>
+  <div id="error" class="hidden"></div>
+
+  <script type="module" src="js/main.js?v=0c35b74f43"></script>
+</body>
+</html>

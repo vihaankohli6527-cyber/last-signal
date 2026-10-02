@@ -3,8 +3,8 @@
    bars and owned state, plus gear (ammo, shields, med kit, tower repair,
    auto-turret). The actual buying rules live in Game.buy() in main.js.
    ========================================================================= */
-import { CONFIG } from './config.js?v=5da3e5f8d0';
-import { WEAPON_ORDER } from './weapons.js?v=5da3e5f8d0';
+import { CONFIG } from './config.js?v=0c35b74f43';
+import { WEAPON_ORDER } from './weapons.js?v=0c35b74f43';
 
 const $ = (id) => document.getElementById(id);
 const BUY_KEYS_WEAPONS = { rifle: '1', sniper: '2', rpg: '3', grenade: '4', bow: '5' };

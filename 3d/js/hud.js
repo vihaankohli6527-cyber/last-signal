@@ -4,8 +4,8 @@
    floating damage numbers, kill feed and banners. Plain HTML elements.
    ========================================================================= */
 import * as THREE from '../lib/three.module.js';
-import { CONFIG } from './config.js?v=5da3e5f8d0';
-import { WEAPON_ORDER } from './weapons.js?v=5da3e5f8d0';
+import { CONFIG } from './config.js?v=0c35b74f43';
+import { WEAPON_ORDER } from './weapons.js?v=0c35b74f43';
 
 const $ = (id) => document.getElementById(id);
 const ENEMY_NAMES = { runner: 'Runner', brute: 'Brute', spitter: 'Spitter', boss: 'Hive Colossus' };

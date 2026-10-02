@@ -5,8 +5,8 @@
    first-person viewmodel (bob, sway, recoil, reload, aim).
    ========================================================================= */
 import * as THREE from '../lib/three.module.js';
-import { CONFIG } from './config.js?v=5da3e5f8d0';
-import { buildViewmodel, setBowDraw } from './viewmodels.js?v=5da3e5f8d0';
+import { CONFIG } from './config.js?v=0c35b74f43';
+import { buildViewmodel, setBowDraw } from './viewmodels.js?v=0c35b74f43';
 
 const W = CONFIG.WEAPONS;
 const SWAP_TIME = 0.45;   // seconds to pull out a weapon

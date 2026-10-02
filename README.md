@@ -1,64 +1,64 @@
-# Last Signal 3D
+# Last Signal
 
-Night-time 3D first-person survival shooter. Defend the glowing radio tower in the middle of the arena from waves of neon aliens. It's an **endless campaign**: survive 10 waves, a rescue ship turns up and flies you to the next area (the next map), and the run carries on. The run only ends when you die.
+## ▶ Play now (free, in your browser, nothing to download)
 
-Built with Three.js r186, which is copied into `lib/`. It's fully static: no build step, no CDN, ES modules with relative paths, and it works on GitHub Pages.
+| | Version | Link |
+|---|---|---|
+| 🟦 | **2D**: top-down arcade shooter | **https://vihaankohli6527-cyber.github.io/last-signal/** |
+| 🟥 | **3D**: first-person shooter (Three.js) | **https://vihaankohli6527-cyber.github.io/last-signal/3d/** |
 
-## Run
-```
-python3 -m http.server 8000     # in this folder
-# open http://localhost:8000
-```
-(Opening the file directly with `file://` won't work, because browsers block ES modules there. Serve it over HTTP.)
+Works in any modern desktop browser (Chrome, Edge, Firefox, Safari). You need a keyboard and mouse.
 
-## Graphics / realism
+---
 
-- Physically based materials everywhere (MeshStandardMaterial with roughness/metalness). Procedural PBR textures (`js/textures.js`: concrete, brushed metal, stone, wood, grass, gun polymer) give every surface an albedo, a normal map and a roughness map, with world-scaled UVs so nothing stretches.
-- Image-based lighting from a PMREM-filtered `RoomEnvironment`, ACES filmic tone mapping, sRGB output, soft PCF shadows, half-resolution GTAO ambient occlusion.
-- More detailed guns (rails, serrations, sights, trigger guards, bolts, scope rings, steel/polymer/brass materials), brass shell ejection, muzzle-flash light, bullet-hole decals, sparks on metal and dust puffs on everything else.
-- Enemies have darker organic skin with small glowing accents. Movement is heavier: acceleration and deceleration, a snappier jump, head bob, and heavier guns lag more.
-- Quality presets: **Low** turns off shadows, bloom, AO, reflections and normal maps (fastest). **Medium** adds shadows and 85% resolution. **High** adds full resolution, bloom, AO, reflections and normal maps. Each option can also be toggled on its own in Settings.
+You're stranded on an alien world. The radio tower in the centre is your only way home, so keep it alive while waves of aliens attack it and you. Survive long enough and the rescue ship arrives.
 
-## Settings
+## 2D version
 
-Title screen or pause menu → **SETTINGS**: mouse sensitivity, scoped/ADS multiplier, invert Y, field of view, master/SFX volume, quality preset (low/medium/high), resolution scale, shadows, bloom, FPS counter, crosshair colour and size. Saved in localStorage and applied immediately.
+[![2D home screen](media/2d-home.jpg)](https://vihaankohli6527-cyber.github.io/last-signal/)
+![2D gameplay](media/2d-gameplay.jpg)
 
-Knife: one hit kills any normal enemy. Against the Hive Colossus boss a slash takes 4% of its max HP and a heavy stab takes 10%. Player max health is 150.
+- **Goal:** survive 10 waves. You lose if your health or the tower's health hits 0. The tower shrinks as it takes damage.
+- **Aliens:** Runners are fast. Brutes are tanky and smash the tower. Stalkers hunt you.
+- **Shop:** between waves, spend points on fire rate, damage, tower repair, a tougher suit or auto-turrets.
 
-Key bindings live in `CONFIG.KEYS` in `js/config.js` (each action takes a list of `KeyboardEvent.code` values).
-
-## Controls
-| Key | Action |
+| Action | Keys |
 |---|---|
-| Mouse | look (click the game to capture the mouse) |
-| WASD / arrows | move · **Shift** sprint · **Space** jump |
-| Left click | fire (bow: hold to draw, release to shoot) |
-| Right click | aim / zoom (sniper scope, bow draw); with the knife: heavy stab |
-| Y | inspect weapon |
-| C (hold) | crouch: lower stance, slower, tighter spread, smaller target (stays crouched under low cover) |
-| Shift + move + C | slide: speed burst that decays over ~0.7 s (1 s cooldown); jump to cancel |
-| R | reload |
-| 1–7 / mouse wheel / Q | switch owned weapons (1 knife, 2 pistol, 3 rifle, 4 sniper, 5 RPG, 6 grenade launcher, 7 bow) |
-| B | market (between waves, or during a wave when standing at the terminal near the tower) |
-| Enter / N | start the next wave (buy phase) |
-| Esc / P | pause (bloom, shadows, resolution, sensitivity, mute, FPS) |
-| G | toggle bloom · **M** mute |
+| Move | WASD / arrow keys |
+| Aim / shoot | Mouse / hold left click |
+| Pause | P or Esc |
+| Mute | M |
+| Shop | 1–5 buy, Enter next wave |
 
-## Files
-- `index.html`, `css/style.css`: page, HUD and all the menus (title, map select, market, pause, cutscene, game over)
-- `js/config.js`: **all balance numbers**: weapons, items, enemies, waves, area scaling
-- `js/main.js`: game states, input, campaign/waves/areas, market rules, damage, rescue cutscene, rendering and bloom
-- `js/world.js`: shared arena engine: lights from the map palette, collision, helper builders, tower and market kiosk
-- `js/maps/*.js`: one file per map (`build(world, THREE)`, palette, bounds, spawn points). Register a new map in `js/maps/index.js`
-- `js/player.js`: movement, collision, armour and health
-- `js/weapons.js`: firing (melee, hitscan, rockets, grenades, arrows), ammo, reloads, explosions, viewmodel animation
-- `js/viewmodels.js`: first-person weapon models built from primitives
-- `js/enemies.js`: runner, brute, spitter, boss; steering and separation; enemy projectiles
-- `js/turrets.js`, `js/effects.js`, `js/hud.js`, `js/market.js`, `js/audio.js` (WebAudio sounds)
-- `lib/`: vendored `three.module.js`, `three.core.js`, plus the PointerLockControls and EffectComposer/RenderPass/UnrealBloomPass/OutputPass addons
+Screen shake (Off / Low / Normal) can be changed on the home and pause screens.
 
-High score and settings are saved in `localStorage`.
+## 3D version
 
-## Releasing
+[![3D combat](media/3d-combat.jpg)](https://vihaankohli6527-cyber.github.io/last-signal/3d/)
+![3D map](media/3d-spaceship.jpg)
 
-Run `python3 tools/bump-version.py` before committing. It stamps every module import and the `<script>`/`<link>` tags with `?v=<content hash>`, so players' browsers load the new code instead of cached files (GitHub Pages caches for 10 minutes).
+Five maps, an endless campaign, a market with 7 weapons, PBR graphics, and settings for sensitivity, FOV, quality, crosshair and more.
+
+| Action | Keys |
+|---|---|
+| Move / sprint / jump | WASD · Shift · Space |
+| Crouch / slide | hold C / Shift + move + C |
+| Fire / aim | Left click / right click (knife: right click = heavy stab) |
+| Reload / inspect | R / Y |
+| Weapons | 1–7, mouse wheel, Q |
+| Market | B |
+| Pause | Esc |
+
+More details are in [`3d/README.md`](3d/README.md).
+
+## Repository layout
+
+```
+index.html, css/, js/   2D game (served at the site root)
+3d/                     3D game (served at /3d/)
+media/                  README screenshots
+tools/sync-2d.py        copies the 2D game in from its source folder and stamps ?v= cache-busting
+3d/tools/bump-version.py  stamps ?v= cache-busting on the 3D modules
+```
+
+Releasing: run `python3 tools/sync-2d.py` (2D) and/or `python3 3d/tools/bump-version.py` (3D), then commit and push to `main`. GitHub Pages updates in about a minute.
