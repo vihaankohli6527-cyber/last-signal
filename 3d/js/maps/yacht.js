@@ -1,7 +1,7 @@
 /* Map: YACHT — the sun deck of a luxury yacht, alone on the ocean at sunset.
    Deck furniture is the cover, railings all round (you can't fall off:
    the arena edge stops you), and an animated low-poly sea. */
-import { canvasTexture } from '../world.js?v=e898eff5dd';
+import { canvasTexture } from '../world.js?v=b6498b4c8e';
 
 export const MAP = {
   id: 'yacht',

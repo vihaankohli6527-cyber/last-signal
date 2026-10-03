@@ -155,7 +155,7 @@ export const CONFIG = {
     brute:   { hp: 240,  speed: 2.6, radius: 1.2,  damage: 35, attackRate: 1.5, reward: 120, target: 'tower',  color: 0xff7a1a },
     spitter: { hp: 80,   speed: 3.8, radius: 0.8,  damage: 12, attackRate: 2.2, reward: 80,  target: 'mixed',  color: 0x7dff3a,
                range: 20, projectileSpeed: 16 },
-    boss:    { hp: 5000, speed: 2.0, radius: 3.0,  damage: 60, attackRate: 1.8, reward: 2000, target: 'tower', color: 0xb44dff,
+    boss:    { hp: 5500, speed: 2.0, radius: 3.0,  damage: 60, attackRate: 1.8, reward: 2000, target: 'tower', color: 0xb44dff,
                range: 34, projectileSpeed: 18, summonEvery: 8 },
   },
 };
@@ -168,9 +168,10 @@ export function buildWave(wave, area = 1) {
   const a = area - 1;                                   // 0 for the first area
   const globalWave = a * CONFIG.WAVES_PER_AREA + wave;  // counts up forever
   const list = [];
-  const runners  = 6 + wave * 3 + a * 4;
+  const runners  = (wave === 2 && a === 0 ? 10 : 6 + wave * 3) + a * 4;   // wave 2 a bit smaller
   const brutes   = wave >= 2 || a > 0 ? Math.floor(wave * 0.8) + a : 0;
-  const spitters = wave >= 3 || a > 0 ? Math.floor(wave * 0.9) + a : 0;
+  const spit = spitterTuning(wave, a);
+  const spitters = spit.count;
   for (let i = 0; i < runners; i++)  list.push('runner');
   for (let i = 0; i < brutes; i++)   list.push('brute');
   for (let i = 0; i < spitters; i++) list.push('spitter');
@@ -185,8 +186,36 @@ export function buildWave(wave, area = 1) {
     enemies: list,
     isBossWave,
     spawnDelay: Math.max(0.3, 1.3 - wave * 0.09 - a * 0.1), // seconds between spawns
-    hpScale: 1 + (globalWave - 1) * 0.1,                     // enemies get tougher...
+    hpScale: wave === 2 && a === 0 ? 1 : 1 + (globalWave - 1) * 0.1,   // enemies get tougher... (wave 2 stays at base HP)
     speedScale: Math.min(1.6, 1 + (globalWave - 1) * 0.02),  // ...and a bit faster
     damageScale: 1 + a * 0.2,                                // ...and hit harder each area
+    spitter: spit,                                           // per-wave spitter behaviour (see below)
+  };
+}
+
+/* Spitters (green ranged enemies) per wave. Waves 1-2 are a gentle intro
+   (none in wave 1, one weak, slow, easy-to-dodge spitter in wave 2), then
+   everything ramps up smoothly so late waves and later areas are harder.
+     count      how many spawn in the wave
+     damageMul  x base spit damage (12)
+     interval   seconds between one spitter's shots
+     windup     telegraph before each shot (it swells + glows bright)
+     range      shooting range (m)      projSpeed  glob speed (m/s)
+     shotScale  glob size               gap        min seconds between ANY two spitter shots (stagger) */
+export function spitterTuning(wave, a = 0) {
+  const w = wave;
+  if (w === 1) return { count: 0, damageMul: 0.6 + a * 0.1, interval: 3.2, windup: 0.75, range: 15, projSpeed: 10, shotScale: 1.6, gap: 1.2 };
+  if (w === 2) return { count: 1 + (a > 0 ? 1 : 0), damageMul: 0.5 + a * 0.1, interval: 3.6, windup: 0.8, range: 14, projSpeed: 9, shotScale: 1.7, gap: 1.4 };
+  const k = w - 3;                                          // 0 at wave 3
+  const COUNT = [2, 3, 5, 6, 7, 8, 9, 10];                  // waves 3..10 of an area
+  return {
+    count: COUNT[Math.min(k, COUNT.length - 1)] + a * 2,    // +2 per area
+    damageMul: 0.8 + k * 0.1 + a * 0.1,                     // 0.8 -> 1.5 by wave 10
+    interval: Math.max(1.2, 2.8 - k * 0.15 - a * 0.2),      // 2.8 s -> 1.75 s by wave 10
+    windup: Math.max(0.35, 0.65 - k * 0.04 - a * 0.05),
+    range: Math.min(24, 16 + k * 0.8 + a),                  // 16 m -> 21.6 m
+    projSpeed: Math.min(20, 11 + k * 1 + a),                // 11 -> 18 m/s
+    shotScale: w <= 4 ? 1.5 : 1.25,
+    gap: Math.max(0.25, 1.0 - k * 0.12 - a * 0.1),          // shots get less staggered later
   };
 }

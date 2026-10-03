@@ -19,19 +19,19 @@ import { UnrealBloomPass } from '../lib/addons/postprocessing/UnrealBloomPass.js
 import { OutputPass } from '../lib/addons/postprocessing/OutputPass.js';
 import { GTAOPass } from '../lib/addons/postprocessing/GTAOPass.js';
 import { RoomEnvironment } from '../lib/addons/environments/RoomEnvironment.js';
-import { CONFIG, buildWave } from './config.js?v=e898eff5dd';
-import { Sound } from './audio.js?v=e898eff5dd';
-import { World } from './world.js?v=e898eff5dd';
-import { MAPS } from './maps/index.js?v=e898eff5dd';
-import { Effects } from './effects.js?v=e898eff5dd';
-import { EnemyManager } from './enemies.js?v=e898eff5dd';
-import { Player } from './player.js?v=e898eff5dd';
-import { WeaponSystem } from './weapons.js?v=e898eff5dd';
-import { Turrets } from './turrets.js?v=e898eff5dd';
-import { HUD } from './hud.js?v=e898eff5dd';
-import { Market } from './market.js?v=e898eff5dd';
-import { setViewmodelDetail } from './viewmodels.js?v=e898eff5dd';
-import { TouchControls, isTouchDevice } from './touch.js?v=e898eff5dd';
+import { CONFIG, buildWave } from './config.js?v=b6498b4c8e';
+import { Sound } from './audio.js?v=b6498b4c8e';
+import { World } from './world.js?v=b6498b4c8e';
+import { MAPS } from './maps/index.js?v=b6498b4c8e';
+import { Effects } from './effects.js?v=b6498b4c8e';
+import { EnemyManager } from './enemies.js?v=b6498b4c8e';
+import { Player } from './player.js?v=b6498b4c8e';
+import { WeaponSystem } from './weapons.js?v=b6498b4c8e';
+import { Turrets } from './turrets.js?v=b6498b4c8e';
+import { HUD } from './hud.js?v=b6498b4c8e';
+import { Market } from './market.js?v=b6498b4c8e';
+import { setViewmodelDetail } from './viewmodels.js?v=b6498b4c8e';
+import { TouchControls, isTouchDevice } from './touch.js?v=b6498b4c8e';
 
 const $ = (id) => document.getElementById(id);
 const DEFAULT_SETTINGS = {
@@ -461,6 +461,7 @@ class Game {
     const info = buildWave(this.wave, this.area);
     this.waveInfo = info;
     this.enemies.scale = { hp: info.hpScale, speed: info.speedScale, damage: info.damageScale };
+    this.enemies.spit = info.spitter;
     this.queue = info.enemies.slice();
     this.waveTotal = this.queue.length;
     this.waveKills = 0;

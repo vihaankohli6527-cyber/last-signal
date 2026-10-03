@@ -8,8 +8,8 @@
    Every enemy is built from simple shapes with glowing (emissive) materials.
    ========================================================================= */
 import * as THREE from '../lib/three.module.js';
-import { surface } from './textures.js?v=e898eff5dd';
-import { CONFIG } from './config.js?v=e898eff5dd';
+import { surface } from './textures.js?v=b6498b4c8e';
+import { CONFIG } from './config.js?v=b6498b4c8e';
 
 const _v = new THREE.Vector3();
 const _v2 = new THREE.Vector3();
@@ -53,6 +53,11 @@ export class Enemy {
     this.pos = pos.clone();
     this.vel = new THREE.Vector3();
     this.attackCd = 1 + Math.random();
+    this.windup = 0;                                     // spitter telegraph timer
+    // Spitters use the per-wave tuning (range, rate, damage...) from buildWave().
+    this.spit = type === 'spitter' ? (manager.spit || null) : null;
+    this.range = this.spit ? this.spit.range : def.range;
+    if (this.spit) { this.damage *= this.spit.damageMul; this.attackCd = 1.5 + Math.random() * 2; }
     this.flash = 0;
     this.alive = true;
     this.anim = Math.random() * 10;
@@ -178,7 +183,7 @@ export class Enemy {
     const dist = Math.hypot(dx, dz) || 0.001;
     const surfaceDist = this.target === 'tower' ? dist - CONFIG.TOWER.radius : dist - CONFIG.PLAYER.radius;
 
-    const ranged = this.def.range;
+    const ranged = this.range;
     const stopDist = ranged ? ranged * 0.75 : this.radius + 0.5;
     let wantMove = surfaceDist > stopDist;
 
@@ -234,7 +239,22 @@ export class Enemy {
 
     // ---- attack ----
     this.attackCd -= dt;
-    if (ranged) {
+    if (this.spit) {
+      // Wind-up telegraph, then one glob. A shared gap staggers shots between spitters.
+      const S = this.spit, M = this.manager;
+      if (this.windup > 0) {
+        this.windup -= dt;
+        if (this.windup <= 0) {
+          const aim = this.target === 'player' ? player.eye() : world.towerAim;
+          M.shoot(this, aim, 0);
+          M.lastSpit = M.time;
+          this.attackCd = S.interval * (0.85 + Math.random() * 0.3);
+        }
+      } else if (surfaceDist < ranged && this.attackCd <= 0) {
+        if (M.time - M.lastSpit < S.gap || M.time < M.spitReserved) this.attackCd = 0.2 + Math.random() * 0.4;   // someone else is about to shoot
+        else { this.windup = S.windup; M.spitReserved = M.time + S.windup + S.gap; }
+      }
+    } else if (ranged) {
       if (surfaceDist < ranged && this.attackCd <= 0) {
         this.attackCd = this.def.attackRate * (0.8 + Math.random() * 0.4);
         const aim = this.target === 'player' ? player.eye() : world.towerAim;
@@ -267,6 +287,15 @@ export class Enemy {
     } else {
       this.glowMat.emissive.setHex(this.def.color); this.bodyMat.emissive.setHex(this.def.color); this.bodyMat.emissiveIntensity = BODY_I;
       this.skinMat.emissive.setHex(this.def.color); this.skinMat.emissiveIntensity = SKIN_I;
+    }
+    // Spitter wind-up telegraph: swells, glows hot and shakes before it spits.
+    if (this.spit) {
+      const k = this.windup > 0 ? 1 - this.windup / this.spit.windup : 0;
+      this.glowMat.emissiveIntensity = GLOW_I * (1 + k * 4);
+      if (this.flash <= 0 && k > 0) { this.skinMat.emissive.setHex(0xeaff7a); this.skinMat.emissiveIntensity = 0.2 + k * 1.2; }
+      this.float.scale.setScalar(1 + k * 0.35);
+      if (k > 0) this.float.position.x = Math.sin(this.anim * 60) * 0.05 * k;
+      else this.float.position.x = 0;
     }
 
     // ---- health bar ----
@@ -351,6 +380,8 @@ export class EnemyManager {
     this.shotGeo = new THREE.SphereGeometry(0.22, 10, 8);
     this.shotMats = {};
     this.scale = { hp: 1, speed: 1, damage: 1 };
+    this.spit = null;               // spitter tuning for the current wave (set by main.js)
+    this.time = 0; this.lastSpit = -99; this.spitReserved = 0;   // shot staggering between spitters
   }
 
   spawn(type, pos) {
@@ -385,8 +416,10 @@ export class EnemyManager {
     const m = new THREE.Mesh(this.shotGeo, this.shotMats[color]);
     m.position.copy(from);
     if (e.type === 'boss') m.scale.setScalar(2);
+    if (e.spit) m.scale.setScalar(e.spit.shotScale);
     this.scene.add(m);
-    this.shots.push({ m, vel: dir.multiplyScalar(e.def.projectileSpeed), life: 4, damage: e.damage, color });
+    const speed = e.spit ? e.spit.projSpeed : e.def.projectileSpeed;
+    this.shots.push({ m, vel: dir.multiplyScalar(speed), life: e.spit ? Math.max(2.5, (e.range + 6) / speed) : 4, damage: e.damage, color });
     if (this.game.sound) this.game.sound.spit();
   }
 
@@ -409,6 +442,7 @@ export class EnemyManager {
   update(dt) {
     const game = this.game;
     const L = this.list;
+    this.time += dt;
     // Separation: push overlapping enemies apart.
     for (const e of L) { e.sepX = 0; e.sepZ = 0; }
     for (let i = 0; i < L.length; i++) {

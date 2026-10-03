@@ -1,7 +1,7 @@
 /* Map: SPACE SHIP — a huge hangar bay inside a starship.
    Metal floor, bulkhead walls making corridors, blue/white light strips,
    and big windows in the walls showing the starfield outside. */
-import { canvasTexture } from '../world.js?v=e898eff5dd';
+import { canvasTexture } from '../world.js?v=b6498b4c8e';
 
 export const MAP = {
   id: 'spaceship',

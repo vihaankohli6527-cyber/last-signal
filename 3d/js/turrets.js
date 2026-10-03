@@ -3,7 +3,7 @@
    tower, turn toward the nearest enemy in range and shoot it.
    ========================================================================= */
 import * as THREE from '../lib/three.module.js';
-import { CONFIG } from './config.js?v=e898eff5dd';
+import { CONFIG } from './config.js?v=b6498b4c8e';
 
 const T = CONFIG.TURRET;
 const _v = new THREE.Vector3();

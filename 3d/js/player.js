@@ -4,8 +4,8 @@
    camera shake. Mouse-look itself is done by PointerLockControls (main.js).
    ========================================================================= */
 import * as THREE from '../lib/three.module.js';
-import { Sound } from './audio.js?v=e898eff5dd';
-import { CONFIG } from './config.js?v=e898eff5dd';
+import { Sound } from './audio.js?v=b6498b4c8e';
+import { CONFIG } from './config.js?v=b6498b4c8e';
 
 const P = CONFIG.PLAYER;
 const _fwd = new THREE.Vector3(), _right = new THREE.Vector3(), _eye = new THREE.Vector3();
